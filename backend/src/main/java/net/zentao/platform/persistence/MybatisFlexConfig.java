@@ -29,7 +29,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 public class MybatisFlexConfig {
 
   @Bean
-  public SqlSessionFactory sqlSessionFactory(DataSource dataSource) throws Exception {
+  public SqlSessionFactory sqlSessionFactory(DataSource dataSource, SlowSqlInterceptor slowSqlInterceptor)
+      throws Exception {
     FlexSqlSessionFactoryBean factoryBean = new FlexSqlSessionFactoryBean();
     factoryBean.setDataSource(dataSource);
     factoryBean.setConfiguration(new FlexConfiguration());
@@ -39,6 +40,8 @@ public class MybatisFlexConfig {
     factory.getConfiguration().setEnvironment(
         new org.apache.ibatis.mapping.Environment(environment.getId(),
             new SpringManagedTransactionFactory(), environment.getDataSource()));
+    // B1 慢 SQL 观测：本工厂手工装配，Boot 不会自动挂 Interceptor bean，须显式加链
+    factory.getConfiguration().addInterceptor(slowSqlInterceptor);
     FlexGlobalConfig globalConfig = FlexGlobalConfig.getDefaultConfig();
     globalConfig.setConfiguration(factory.getConfiguration());
     globalConfig.setSqlSessionFactory(factory);

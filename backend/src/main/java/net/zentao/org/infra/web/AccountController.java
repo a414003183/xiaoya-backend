@@ -13,6 +13,7 @@ import net.zentao.org.app.UpdateAccountHandler;
 import net.zentao.org.domain.Account;
 import net.zentao.org.domain.AccountRepository;
 import net.zentao.platform.activity.ActivityQueryService;
+import net.zentao.platform.audit.Audit;
 import net.zentao.platform.error.ApiException;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.AccountView;
@@ -68,6 +69,7 @@ public class AccountController {
   @PostMapping("/accounts")
   @Operation(operationId = "createAccount")
   @RequirePrivilege("account-create")
+  @Audit(action = "account-create", objectType = "account")
   public DataEnvelope<AccountView> create(@RequestBody CreateAccountHandler.AccountCreateRequest body,
       HttpServletRequest request) {
     Account account = createHandler.handle(resolver.resolve(request), body);

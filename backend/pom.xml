@@ -34,6 +34,11 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
+    <!-- B1 可观测性地基：/actuator/health 探活（暴露面与鉴权见 application.yml 的 management 段 + ActuatorGuardInterceptor） -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
     <!-- A-04 CSV 导出横切（@Around 切面）需要 AspectJ 支持（Boot 4 起 starter 更名为 aspectj）；版本由 Boot BOM 管理 -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

@@ -7,6 +7,7 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
+import net.zentao.platform.audit.AuditRecorder;
 import net.zentao.platform.error.ApiException;
 import net.zentao.platform.rbac.PrivilegeChecker;
 import net.zentao.platform.session.AccountView;
@@ -41,6 +42,7 @@ public class SessionController {
   private final SessionRepository repository;
   private final SessionResolver resolver;
   private final PrivilegeChecker privilegeChecker;
+  private final AuditRecorder auditRecorder;
   private final Duration ttl;
   private final boolean secureCookie;
 
@@ -51,6 +53,7 @@ public class SessionController {
       SessionRepository repository,
       SessionResolver resolver,
       PrivilegeChecker privilegeChecker,
+      AuditRecorder auditRecorder,
       @Value("${zentao.session.ttl:7d}") Duration ttl,
       @Value("${zentao.session.secure-cookie:false}") boolean secureCookie) {
     this.loginHandler = loginHandler;
@@ -59,6 +62,7 @@ public class SessionController {
     this.repository = repository;
     this.resolver = resolver;
     this.privilegeChecker = privilegeChecker;
+    this.auditRecorder = auditRecorder;
     this.ttl = ttl;
     this.secureCookie = secureCookie;
   }
@@ -80,6 +84,8 @@ public class SessionController {
     po.setUserAgent(httpRequest.getHeader("User-Agent"));
     repository.insert(po);
     httpResponse.addHeader("Set-Cookie", sessionCookie(token, ttl, secureCookie).toString());
+    // B1 §H3：登录是无会话的写请求，AuditAspect 按设计不审（主体未知），故在此显式记账。
+    auditRecorder.record(account.account(), "login", null, null, "POST /api/v1/session", httpRequest.getRemoteAddr());
     return DataEnvelope.of(account);
   }
 

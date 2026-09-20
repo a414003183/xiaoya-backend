@@ -24,6 +24,23 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 
+# B1 可观测性地基：只放探活面。health 匿名可读（探针），info 及以后新增的端点一律需会话
+# （ActuatorGuardInterceptor）。show-details 恒 never——本应用认证不走 Spring Security，
+# when-authorized 永远判不出「已授权」，写它等于写死 never 却看上去像开了详情。
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  # traceId 由 TraceIdFilter 放进 MDC；%X{traceId:-} 让过滤器之外（启动期）的日志不炸成空占位
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [%X{traceId:-}] %logger{36} - %msg%n"
+
 zentao:
   admin:
     # 06 A7-5：内置 admin 初始口令（V22 迁移消费）。留空 = 生成一次性随机口令并打启动日志（首登强制改密）；
@@ -48,3 +65,6 @@ zentao:
   notification:
     sse:
       heartbeat: 30000
+  persistence:
+    # B1 慢 SQL 告警阈值（SlowSqlInterceptor）；设 0 则每条语句都告警（仅供单测验证接线）
+    slow-sql-threshold: 1s
