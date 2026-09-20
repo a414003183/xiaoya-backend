@@ -1,0 +1,44 @@
+# 测试单状态机（quality 卡 §4.3 五动作）。
+# upsert test_run_case 与 lastRun 同步是 RecordResultHandler 的处理器逻辑；
+# 本文件承载 from 守卫与 activity/notify 副作用（含 realBeganAt 的 fieldSet）。
+# realFinishedAt 校验（必填、≥ beginDate 且 ≤ 次日）由处理器产 42201，result-required 为兜底守卫。
+domain: testRun
+initial: wait
+states: [wait, doing, done, blocked]
+transitions:
+  - action: start
+    from: [wait]
+    to: doing
+    effects:
+      - fieldSet: {realBeganAt: "@now"}
+      - activity: started
+      - notify: owner
+  - action: block
+    from: [wait, doing]
+    to: blocked
+    effects:
+      - activity: blocked
+  - action: activate
+    from: [blocked, done]
+    to: doing
+    effects:
+      - activity: activated
+  - action: close
+    from: [wait, doing, blocked]
+    to: done
+    guards:
+      - name: real-finished-required
+        expr: "realFinishedAt"
+    effects:
+      - activity: closed
+      - notify: owner
+      - notify: createdBy
+  - action: record-result
+    from: [doing]
+    to: self
+    guards:
+      - name: result-required
+        expr: "resultValue"
+    effects:
+      - activity: runCase
+        detail: {result: resultValue}

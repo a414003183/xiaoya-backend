@@ -1,0 +1,23 @@
+# 用例状态机（quality 卡 §4.2）：仅 review 两条迁移；标记态三态（normal|blocked|investigate）
+# 不进本文件——由 PATCH /test-cases 的 status 字段直改（03 §1 唯一例外，UpdateTestCaseHandler 校验）。
+# result（pass|clarify）由评审处理器在 fire 前写入目标对象。
+domain: testCase
+initial: normal
+states: [wait, normal, blocked, investigate]
+transitions:
+  - action: review
+    from: [wait]
+    to: normal
+    when: "result == pass"
+    effects:
+      - activity: reviewed
+        detail: {result: result}
+      - notify: createdBy
+  - action: review
+    from: [wait]
+    to: wait
+    when: "result == clarify"
+    effects:
+      - activity: reviewed
+        detail: {result: result}
+      - notify: createdBy

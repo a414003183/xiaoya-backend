@@ -1,0 +1,14 @@
+package net.zentao;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
+
+@SpringBootApplication
+@EnableScheduling
+public class ZentaoApplication {
+
+  public static void main(String[] args) {
+    SpringApplication.run(ZentaoApplication.class, args);
+  }
+}

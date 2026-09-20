@@ -1,0 +1,42 @@
+# 待办状态机（workspace 卡 §4 全表五动作）。
+# 请求体驱动的字段（assignee/comment）由命令处理器在 fire 前写入对象；本文件守卫是工作流级兜底。
+# 「assignee 非本人」无法用表达式子集表达（需比较两个字段），由处理器前置抛 42203（同 task 父任务先例）。
+domain: todo
+initial: wait
+states: [wait, doing, done, closed]
+transitions:
+  - action: start
+    from: [wait]
+    to: doing
+    effects:
+      - activity: started
+  - action: finish
+    from: [wait, doing]
+    to: done
+    effects:
+      - fieldSet: {finishedBy: "@actor", finishedAt: "@now"}
+      - activity: finished
+  - action: activate              # 激活清空 finished/closed 四列
+    from: [done, closed]
+    to: wait
+    effects:
+      - fieldSet: {finishedBy: "@null", finishedAt: "@null", closedBy: "@null", closedAt: "@null"}
+      - activity: activated
+  - action: close
+    from: [wait, doing, done]
+    to: closed
+    effects:
+      - fieldSet: {closedBy: "@actor", closedAt: "@now"}
+      - activity: closed
+  - action: assign                # 任意非 closed 状态；通知接收人 = assignee（type=todo-assign）
+    from: [wait, doing, done]
+    to: self
+    guards:
+      - name: assignee-required
+        expr: "assignee"
+      - name: not-self             # 处理器在 fire 前写入 assignToSelf（assignee=本人 → 42203）
+        expr: "assignToSelf == false"
+    effects:
+      - fieldSet: {assignedBy: "@actor", assignedAt: "@now"}
+      - activity: assigned
+      - notify: assignee

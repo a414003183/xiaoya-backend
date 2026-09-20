@@ -1,0 +1,30 @@
+domain: account
+initial: active
+states: [active, disabled]
+transitions:
+  - action: disable
+    from: [active]
+    to: disabled
+    effects:
+      - activity: disabled
+  - action: enable
+    from: [disabled]
+    to: active
+    effects:
+      - activity: enabled
+  - action: unlock
+    from: [active, disabled]
+    to: active
+    effects:
+      - activity: unlocked
+  - action: delete
+    from: [active, disabled]
+    to: disabled
+    effects:
+      - activity: deleted
+  - action: reset-password
+    from: [active, disabled]
+    to: active
+    effects:
+      - activity: passwordChanged
+      - notify: self

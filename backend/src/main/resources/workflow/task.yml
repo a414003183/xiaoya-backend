@@ -1,0 +1,75 @@
+# 任务状态机（task 卡 §4 全表 8 动作，六状态）。
+# 请求体驱动的字段（assignee/leftHours/closedReason/本次消耗）由 TaskActionHandler 在 fire 前写入对象，
+# 动作备注经 fire(target, action, comment) 注入——YAML 守卫据此判定；meta allowedStatus 同源。
+# 父任务（isParent=true）只允许 assign/pause/resume/cancel/close/activate：start/finish 由守卫挡下（42203）。
+domain: task
+initial: wait
+states: [wait, doing, done, pause, cancel, closed]
+transitions:
+  - action: start
+    from: [wait]
+    to: doing
+    guards:
+      - name: not-parent
+        expr: "isParent == false"
+    effects:
+      - activity: started
+      - notify: assignee
+  - action: finish
+    from: [wait, doing, pause]
+    to: done
+    guards:
+      - name: not-parent
+        expr: "isParent == false"
+      - name: consumed-required      # 本次消耗已在处理器内累加，故累计为 0 即两者皆 0 → 42203
+        expr: "consumedHours > 0"
+    effects:
+      - activity: finished
+      - notify: createdBy
+  - action: pause
+    from: [doing]
+    to: pause
+    effects:
+      - activity: paused
+  - action: resume
+    from: [pause]
+    to: doing
+    effects:
+      - activity: resumed
+  - action: cancel
+    from: [wait, doing, pause]
+    to: cancel
+    effects:
+      - activity: canceled
+      - notify: assignee            # 处理器已把 assignee 回指 createdBy，故通知原负责人
+  - action: close
+    from: [done, cancel]
+    to: closed
+    effects:
+      - fieldSet: {closedAt: "@now", closedBy: "@actor"}
+      - activity: closed
+  - action: close                  # 父任务可从任意非 closed 状态关闭（含 wait/doing/pause）
+    from: [wait, doing, pause]
+    to: closed
+    guards:
+      - name: parent-only
+        expr: "isParent == true"
+    effects:
+      - fieldSet: {closedAt: "@now", closedBy: "@actor"}
+      - activity: closed
+  - action: activate
+    from: [done, cancel, closed]
+    to: doing
+    effects:
+      - activity: activated
+      - notify: assignee
+  - action: assign
+    from: [wait, doing, done, pause]
+    to: self
+    guards:
+      - name: assignee-required
+        expr: "assignee"
+    effects:
+      - fieldSet: {assignedAt: "@now"}
+      - activity: assigned
+      - notify: assignee

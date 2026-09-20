@@ -1,0 +1,127 @@
+# 产品域四机（product 卡 §4.1–4.4）：一个文件多文档，每文档一域（product/branch/plan/release）。
+# link/unlink 的 objectType/ids 由处理器在 fire 前写入对象，供守卫判定（同 story.yml 约定）。
+domain: product
+initial: normal
+states: [normal, closed]
+transitions:
+  - action: close
+    from: [normal]
+    to: closed
+    effects:
+      - fieldSet: {closedAt: "@now"}
+      - activity: closed
+  - action: activate
+    from: [closed]
+    to: normal
+    effects:
+      - fieldSet: {closedAt: "@null"}
+      - activity: activated
+---
+domain: branch
+initial: active
+states: [active, closed]
+transitions:
+  - action: close
+    from: [active]
+    to: closed
+    effects:
+      - fieldSet: {closedAt: "@now"}
+      - activity: closed
+  - action: activate
+    from: [closed]
+    to: active
+    effects:
+      - fieldSet: {closedAt: "@null"}
+      - activity: activated
+  - action: set-default        # 同产品其余分支 isDefault=false 由处理器落库
+    from: [active]
+    to: self
+    effects:
+      - fieldSet: {isDefault: true}
+---
+domain: plan
+initial: wait
+states: [wait, doing, done, closed]
+transitions:
+  - action: start
+    from: [wait]
+    to: doing
+    effects:
+      - activity: started
+  - action: finish
+    from: [doing]
+    to: done
+    effects:
+      - fieldSet: {finishedAt: "@now"}
+      - activity: finished
+  - action: close
+    from: [wait, doing, done]
+    to: closed
+    when: "closedReason == done"
+    effects:
+      - fieldSet: {closedAt: "@now", finishedAt: "@now"}
+      - activity: closed
+  - action: close              # closedReason=cancel：只落 closedAt，finishedAt 保持空
+    from: [wait, doing, done]
+    to: closed
+    when: "closedReason == cancel"
+    effects:
+      - fieldSet: {closedAt: "@now"}
+      - activity: closed
+  - action: activate
+    from: [done, closed]
+    to: doing
+    effects:
+      - fieldSet: {finishedAt: "@null", closedAt: "@null", closedReason: "@null"}
+      - activity: activated
+  - action: link
+    from: [wait, doing, done]
+    to: self
+    guards:
+      - name: object-type
+        expr: "objectType in [story, bug]"
+      - name: ids-required
+        expr: "ids.size() > 0"
+    effects:
+      - activity: linked
+  - action: unlink
+    from: [wait, doing, done]
+    to: self
+    guards:
+      - name: object-type
+        expr: "objectType in [story, bug]"
+      - name: ids-required
+        expr: "ids.size() > 0"
+    effects:
+      - activity: unlinked
+---
+domain: release
+initial: normal
+states: [normal, terminated]
+transitions:
+  - action: terminate
+    from: [normal]
+    to: terminated
+    effects:
+      - activity: terminated
+      - notify: notifyAccounts
+  - action: link
+    from: [normal]
+    to: self
+    guards:
+      - name: object-type
+        expr: "objectType in [story, bug]"
+      - name: ids-required
+        expr: "ids.size() > 0"
+    effects:
+      - activity: linked
+  - action: unlink
+    from: [normal]
+    to: self
+    guards:
+      - name: object-type
+        expr: "objectType in [story, bug]"
+      - name: ids-required
+        expr: "ids.size() > 0"
+    effects:
+      - activity: unlinked

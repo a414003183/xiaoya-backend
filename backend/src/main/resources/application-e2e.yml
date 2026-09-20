@@ -1,0 +1,14 @@
+# E2E 专用 profile（phase-6 T-7）：MySQL 独立 schema zentao_e2e。
+# Playwright global-setup 每轮 DROP/CREATE 该库，api 以本 profile 启动后由 Flyway 自动建表（数据隔离）。
+spring:
+  datasource:
+    url: ${E2E_DB_URL:jdbc:mysql://127.0.0.1:3306/zentao_e2e?useSSL=false&allowPublicKeyRetrieval=true}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${E2E_DB_USER:root}
+    password: ${E2E_DB_PASSWORD:root}
+
+# 06 A7-5：e2e 固定 admin 初始口令（用例登录基线）。显式配置 = 不置首登强制改密标记，
+# 否则每轮首个 UI 用例都会被会话门禁重定向到 /my/profile。
+zentao:
+  admin:
+    initial-password: admin123

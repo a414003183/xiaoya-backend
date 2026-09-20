@@ -1,0 +1,76 @@
+# 需求状态机（requirement 卡 §4 全表 9 动作）。
+# 请求体驱动的字段（reviewers/closedReason/duplicateOfId/assignee）由命令处理器在 fire 前写入对象，
+# 动作备注经 fire(target, action, comment) 注入——守卫据此判定；本文件是按钮显隐（meta allowedStatus）的同源真源。
+domain: story
+initial: draft
+states: [draft, reviewing, active, changing, changed, closed]
+transitions:
+  - action: submit-review
+    from: [draft, changed]
+    to: reviewing
+    when: "needNotReview == false"
+    guards:
+      - name: reviewers-required
+        expr: "reviewers.size() > 0"
+    effects:
+      - activity: submitted
+      - notify: reviewers
+  - action: submit-review        # needNotReview=true 直达激活
+    from: [draft, changed]
+    to: active
+    when: "needNotReview == true"
+    effects:
+      - activity: activated
+  - action: pass
+    from: [reviewing]
+    to: active
+    effects:
+      - activity: passed
+      - notify: createdBy
+  - action: reject
+    from: [reviewing]
+    to: draft
+    guards:
+      - name: comment-required
+        expr: "comment"
+    effects:
+      - activity: rejected
+      - notify: createdBy
+  - action: change
+    from: [active]
+    to: changing
+    effects:
+      - activity: changed
+  - action: change-done
+    from: [changing]
+    to: changed
+    effects:
+      - activity: changeDone
+  - action: close
+    from: [active, changed]
+    to: closed
+    guards:
+      - name: closed-reason-required
+        expr: "closedReason"
+      - name: duplicate-of-required
+        when: "closedReason == duplicate"
+        expr: "duplicateOfId"
+    effects:
+      - fieldSet: {closedAt: "@now", closedBy: "@actor"}
+      - activity: closed
+  - action: activate
+    from: [closed]
+    to: active
+    effects:
+      - fieldSet: {closedAt: "@null", closedBy: "@null", closedReason: "@null"}
+      - activity: activated
+  - action: assign
+    from: [draft, reviewing, active, changing, changed]
+    to: self
+    guards:
+      - name: assignee-required
+        expr: "assignee"
+    effects:
+      - fieldSet: {assignedAt: "@now"}
+      - activity: assigned
+      - notify: assignee

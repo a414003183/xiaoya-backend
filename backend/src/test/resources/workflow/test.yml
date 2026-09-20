@@ -1,0 +1,18 @@
+domain: test
+initial: draft
+states: [draft, reviewing, active, changed, closed]
+transitions:
+  - action: submit-review
+    from: [draft, changed]
+    to: reviewing
+    guards:
+      - name: reviewers-required
+        expr: "reviewers.size() > 0"
+    effects:
+      - activity: submitted
+      - notify: reviewers
+  - action: close
+    from: [active]
+    to: closed
+    effects:
+      - activity: closed

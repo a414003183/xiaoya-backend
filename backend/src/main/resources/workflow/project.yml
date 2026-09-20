@@ -1,0 +1,119 @@
+# 项目域状态机（project 卡 §4）：program/project/execution 三型同构，一文件三文档 = 三台同构机。
+# 状态集五态六动作；realBeganDate/realEndDate 为 DATE 语义，由 ProjectActionHandler 在 fire 前写入对象
+# （请求体可覆写），closedAt/closedBy 走 fieldSet；activate 的 beginDate≤endDate 守卫在处理器内判定（42203）。
+domain: program
+initial: wait
+states: [wait, doing, suspended, delay, closed]
+transitions:
+  - action: start
+    from: [wait]
+    to: doing
+    effects:
+      - activity: started
+  - action: suspend
+    from: [doing]
+    to: suspended
+    effects:
+      - activity: suspended
+  - action: resume
+    from: [suspended]
+    to: doing
+    effects:
+      - activity: resumed
+  - action: delay
+    from: [doing]
+    to: delay
+    effects:
+      - activity: delayed
+  - action: close
+    from: [doing, suspended, delay]
+    to: closed
+    effects:
+      - fieldSet: {closedAt: "@now", closedBy: "@actor"}
+      - activity: closed
+      - notify: pm
+  - action: activate
+    from: [closed]
+    to: doing
+    effects:
+      - fieldSet: {closedAt: "@null", closedBy: "@null"}
+      - activity: activated
+      - notify: pm
+---
+domain: project
+initial: wait
+states: [wait, doing, suspended, delay, closed]
+transitions:
+  - action: start
+    from: [wait]
+    to: doing
+    effects:
+      - activity: started
+  - action: suspend
+    from: [doing]
+    to: suspended
+    effects:
+      - activity: suspended
+  - action: resume
+    from: [suspended]
+    to: doing
+    effects:
+      - activity: resumed
+  - action: delay
+    from: [doing]
+    to: delay
+    effects:
+      - activity: delayed
+  - action: close
+    from: [doing, suspended, delay]
+    to: closed
+    effects:
+      - fieldSet: {closedAt: "@now", closedBy: "@actor"}
+      - activity: closed
+      - notify: pm
+  - action: activate
+    from: [closed]
+    to: doing
+    effects:
+      - fieldSet: {closedAt: "@null", closedBy: "@null"}
+      - activity: activated
+      - notify: pm
+---
+domain: execution
+initial: wait
+states: [wait, doing, suspended, delay, closed]
+transitions:
+  - action: start
+    from: [wait]
+    to: doing
+    effects:
+      - activity: started
+  - action: suspend
+    from: [doing]
+    to: suspended
+    effects:
+      - activity: suspended
+  - action: resume
+    from: [suspended]
+    to: doing
+    effects:
+      - activity: resumed
+  - action: delay
+    from: [doing]
+    to: delay
+    effects:
+      - activity: delayed
+  - action: close
+    from: [doing, suspended, delay]
+    to: closed
+    effects:
+      - fieldSet: {closedAt: "@now", closedBy: "@actor"}
+      - activity: closed
+      - notify: pm
+  - action: activate
+    from: [closed]
+    to: doing
+    effects:
+      - fieldSet: {closedAt: "@null", closedBy: "@null"}
+      - activity: activated
+      - notify: pm

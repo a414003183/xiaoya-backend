@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: zentao-api
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    # P0 单测/开发用 H2(MySQL mode)；P1 起按 profile 接 MySQL 8.4（00-governance D4）
+    url: jdbc:h2:mem:zentao;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 55MB
+
+server:
+  port: 8080
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+
+zentao:
+  admin:
+    # 06 A7-5：内置 admin 初始口令（V22 迁移消费）。留空 = 生成一次性随机口令并打启动日志（首登强制改密）；
+    # 配置值 = 以此为准且不强制改密（容器编排 / e2e 固定口令场景）。
+    initial-password: ${ZENTAO_ADMIN_INITIAL_PASSWORD:}
+  session:
+    cookie-name: ZT_SESSION
+    ttl: 7d
+    cleanup-cron: "0 0 4 * * *"
+  login:
+    rate-limit-window: 60s
+    rate-limit-max: 10
+  security:
+    password:
+      # 06 A7-4：新口令下限 8 位；require-mixed=需字母+数字（关闭则只校验长度）
+      min-length: 8
+      require-mixed: true
+  file:
+    root: data/files
+    purge-grace-days: 30
+    cleanup-cron: "0 30 4 * * *"
+  notification:
+    sse:
+      heartbeat: 30000

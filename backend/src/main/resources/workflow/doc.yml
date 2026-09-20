@@ -1,0 +1,42 @@
+# 文档状态机（doc 卡 §4 全表：save-draft/publish/move/delete；create 由 CreateDocHandler 直接落初态，
+# 与其他域一致不经迁移）。
+# 请求体驱动的字段（title/content/files/hasDraftChanges）由命令处理器在 fire 前写入对象；
+# YAML 守卫是工作流级兜底（42203），处理器的字段校验产 42201——两处同源不重复造守卫。
+domain: doc
+initial: draft
+states: [draft, published]
+transitions:
+  - action: save-draft            # 覆盖写 v0 工作副本；不写动态流（无 effects）
+    from: [draft, published]
+    to: self
+  - action: publish               # 首发：v0 → v1 快照
+    from: [draft]
+    to: published
+    guards:
+      - name: title-required
+        expr: "title"
+      - name: content-required
+        expr: "content"
+    effects:
+      - activity: published
+      - notify: notifyAccounts
+  - action: publish               # 再发：v0 相对当前版本有实际改动才出新快照，否则 42203
+    from: [published]
+    to: published
+    guards:
+      - name: draft-changed
+        expr: "hasDraftChanges == true"
+    effects:
+      - activity: edited
+        detail: {title: title, files: files}
+      - notify: notifyAccounts
+  - action: move                  # 换库/换目录/换父章节：冗余归属列由处理器联动
+    from: [draft, published]
+    to: self
+    effects:
+      - activity: moved
+  - action: delete                # 软删；子文档由处理器一并软删（状态不变）
+    from: [draft, published]
+    to: self
+    effects:
+      - activity: deleted

@@ -1,0 +1,35 @@
+# 通用看板状态机（project 卡 §4）：空间/看板简化为二态 close/activate。
+# 一文件两文档 = 两台同构机；meta actions[].allowedStatus 由此导出，运行期守卫同源（03 §6）。
+domain: board_space
+initial: active
+states: [active, closed]
+transitions:
+  - action: close
+    from: [active]
+    to: closed
+    effects:
+      - fieldSet: {closedAt: "@now", closedBy: "@actor"}
+      - activity: closed
+  - action: activate
+    from: [closed]
+    to: active
+    effects:
+      - fieldSet: {closedAt: "@null", closedBy: "@null"}
+      - activity: activated
+---
+domain: board
+initial: active
+states: [active, closed]
+transitions:
+  - action: close
+    from: [active]
+    to: closed
+    effects:
+      - fieldSet: {closedAt: "@now", closedBy: "@actor"}
+      - activity: closed
+  - action: activate
+    from: [closed]
+    to: active
+    effects:
+      - fieldSet: {closedAt: "@null", closedBy: "@null"}
+      - activity: activated

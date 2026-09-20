@@ -1,0 +1,16 @@
+# 生产 profile（phase-6 T-9）：单 jar 一体化部署。
+# datasource 三件套走环境变量（MYSQL_URL/MYSQL_USER/MYSQL_PASSWORD，均为必填）；
+# Flyway 保持开启——新装启动自动建表、升级启动自动迁移（安装与升级同一条路径，00 §3.2）。
+# 产物同源提供 API 与静态页面（backend/src/main/resources/static 由 build-release.sh 拷入），
+# 无反向代理与跨域要求，SSE 同源直达。
+spring:
+  datasource:
+    url: ${MYSQL_URL}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+
+# 生产走 HTTPS：会话 cookie 必须带 Secure（dev 走 http，默认 false，06 对齐 A7-2）。
+zentao:
+  session:
+    secure-cookie: true

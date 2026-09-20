@@ -1,0 +1,8 @@
+# 非法定义夹具：to 未声明在 states 内 → YamlStateMachineLoader 启动期即失败（platform §4.3）。
+domain: broken
+initial: a
+states: [a, b]
+transitions:
+  - action: go
+    from: [a]
+    to: c

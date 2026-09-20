@@ -1,0 +1,58 @@
+# Bug 状态机（quality 卡 §4.1 五动作）。
+# 请求体驱动的字段（resolution/resolvedBuild/duplicateOfId/openedBuilds/assignee/storyId）由命令处理器
+# 在 fire 前写入对象；处理器产 42201（带 fields），本文件守卫是工作流级兜底（42203）——两处同源。
+# activatedCount+1 / resolution 三字段清空 / confirm 置位等聚合内聚逻辑由 Bug 聚合方法承担。
+domain: bug
+initial: active
+states: [active, resolved, closed]
+transitions:
+  - action: confirm
+    from: [active]
+    to: self
+    effects:
+      - activity: confirmed
+      - notify: assignee
+  - action: resolve
+    from: [active]
+    to: resolved
+    guards:
+      - name: resolution-required
+        expr: "resolution"
+      - name: duplicate-of-required
+        when: "resolution == duplicate"
+        expr: "duplicateOfId"
+      - name: resolved-build-required
+        when: "resolution == fixed"
+        expr: "resolvedBuild"
+    effects:
+      - fieldSet: {resolvedBy: "@actor", resolvedAt: "@now"}
+      - activity: resolved
+        detail: {resolution: resolution}
+      - notify: createdBy
+      - notify: assignee
+  - action: activate
+    from: [resolved, closed]
+    to: active
+    guards:
+      - name: opened-builds-required
+        expr: "openedBuilds"
+    effects:
+      - activity: activated
+      - notify: assignee
+  - action: close
+    from: [resolved]
+    to: closed
+    effects:
+      - fieldSet: {closedBy: "@actor", closedAt: "@now"}
+      - activity: closed
+      - notify: createdBy
+  - action: assign
+    from: [active, resolved]
+    to: self
+    guards:
+      - name: assignee-required
+        expr: "assignee"
+    effects:
+      - fieldSet: {assignedAt: "@now"}
+      - activity: assigned
+      - notify: assignee

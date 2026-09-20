@@ -1,0 +1,50 @@
+-- Bug 表（quality 卡 §2/§3.1 字段级真源）：软删 deleted_at + 乐观锁 lock_version；
+-- opened_builds/resolved_build 保留字符串语义（构建 id 或自由文本）；§2 砍掉列不落。
+CREATE TABLE bug (
+    id                BIGINT        NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    product_id        BIGINT        NOT NULL,
+    branch_id         BIGINT        NOT NULL DEFAULT 0,
+    category_id       BIGINT        NOT NULL DEFAULT 0,
+    project_id        BIGINT        NOT NULL DEFAULT 0,
+    execution_id      BIGINT        NOT NULL DEFAULT 0,
+    plan_id           BIGINT        NULL,
+    story_id          BIGINT        NULL,
+    task_id           BIGINT        NULL,
+    test_case_id      BIGINT        NULL,
+    test_run_id       BIGINT        NULL,
+    title             VARCHAR(255)  NOT NULL,
+    keywords          VARCHAR(255)  NULL,
+    severity          INT           NOT NULL DEFAULT 3,
+    priority          INT           NOT NULL DEFAULT 3,
+    type              VARCHAR(32)   NOT NULL DEFAULT 'codeerror',
+    os                VARCHAR(32)   NULL,
+    browser           VARCHAR(32)   NULL,
+    steps             TEXT          NULL,
+    opened_builds     VARCHAR(255)  NULL,
+    status            VARCHAR(16)   NOT NULL DEFAULT 'active',
+    confirmed         TINYINT       NOT NULL DEFAULT 0,
+    activated_count   INT           NOT NULL DEFAULT 0,
+    deadline          DATE          NULL,
+    assignee          VARCHAR(64)   NULL,
+    assigned_at       TIMESTAMP     NULL,
+    resolution        VARCHAR(16)   NULL,
+    resolved_by       VARCHAR(64)   NULL,
+    resolved_at       TIMESTAMP     NULL,
+    resolved_build    VARCHAR(90)   NULL,
+    duplicate_of_id   BIGINT        NULL,
+    related_bug_ids   TEXT          NULL,
+    notify_accounts   TEXT          NULL,
+    closed_by         VARCHAR(64)   NULL,
+    closed_at         TIMESTAMP     NULL,
+    custom_fields     TEXT          NULL,
+    created_by        VARCHAR(64)   NULL,
+    created_at        TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_by        VARCHAR(64)   NULL,
+    updated_at        TIMESTAMP     NULL,
+    lock_version      INT           NOT NULL DEFAULT 0,
+    deleted_at        TIMESTAMP     NULL
+);
+CREATE INDEX idx_bug_product ON bug (product_id);
+CREATE INDEX idx_bug_execution ON bug (execution_id);
+CREATE INDEX idx_bug_assignee ON bug (assignee);
+CREATE INDEX idx_bug_plan ON bug (plan_id);
