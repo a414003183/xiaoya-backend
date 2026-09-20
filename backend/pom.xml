@@ -18,7 +18,7 @@
   <description>Zentao 项目管理平台后端（单 Maven 模块）</description>
 
   <properties>
-    <!-- 本机仅装 JDK 21（01 §2.1 基线为 25）：Spring Boot 4.1 基线 17+，release=21 先行，装 25 后仅改此行 -->
+    <!-- 编译目标定 Java 21（口径与 README 环境表一致）：兼容性最好，Boot 4.1 基线 17+，可用更高版本 JDK 运行 -->
     <java.version>21</java.version>
     <mybatis-flex.version>1.11.8</mybatis-flex.version>
     <springdoc.version>3.1.1</springdoc.version>
