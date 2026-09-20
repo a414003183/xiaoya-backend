@@ -20,6 +20,7 @@ public class PrivilegeCatalog {
     register("file", List.of("file-upload"));
     register("setting", List.of("setting-manage"));
     register("lang", List.of("lang-manage"));
+    register("audit", List.of("audit-log-view"));
   }
 
   /** 登记域权限码（幂等合并，保持顺序）。 */

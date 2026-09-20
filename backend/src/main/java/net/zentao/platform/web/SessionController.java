@@ -70,7 +70,16 @@ public class SessionController {
   @PostMapping("/session")
   public DataEnvelope<AccountView> login(
       @Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
-    AccountView account = loginHandler.login(request.account(), request.password());
+    // L1：登录失败也记账，否则「登录日志」只剩成功记录，看不出谁在什么 IP 试过而没进来。
+    // detail 只记失败原因（网关文案本身不区分「账号不存在/口令错」），口令永不落库。
+    AccountView account;
+    try {
+      account = loginHandler.login(request.account(), request.password());
+    } catch (ApiException failure) {
+      auditRecorder.record(request.account(), "login-failed", null, null, failure.getMessage(),
+          httpRequest.getRemoteAddr());
+      throw failure;
+    }
     String token = HexFormat.of().formatHex(random32());
     Instant now = Instant.now();
     SessionPO po = new SessionPO();

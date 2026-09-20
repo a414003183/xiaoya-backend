@@ -1,6 +1,7 @@
 package net.zentao.platform.audit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.net.http.HttpResponse;
@@ -70,6 +71,23 @@ class AuditLogTest extends ApiTestSupport {
     assertEquals("account", row.get("object_type"));
   }
 
+  @Test
+  @DisplayName("登录失败也落一行 login-failed：记下尝试的账号与原因，但口令绝不进审计")
+  void recordsFailedLogin() throws Exception {
+    // 用不存在的账号：失败计数按账号滑动窗口计，唯一账号名可避开登录限流（42901）与其他用例互相影响。
+    String attempted = "audit-missing-" + System.nanoTime();
+    HttpResponse<String> failed = send("POST", "/api/v1/session",
+        "{\"account\":\"" + attempted + "\",\"password\":\"wrong-password\"}", null);
+    assertEquals(401, failed.statusCode(), failed.body());
+
+    Map<String, Object> row = singleRow(trace(failed));
+    assertEquals(attempted, row.get("account"), "记的是被尝试的账号，登录失败时无会话主体");
+    assertEquals("login-failed", row.get("action"));
+    assertEquals("账号或密码错误。", row.get("detail"), "失败原因供安全排查");
+    assertNotNull(row.get("ip"));
+    assertFalse(row.containsValue("wrong-password"), "口令不得出现在审计行：" + row);
+  }
+
   private static String trace(HttpResponse<String> response) {
     return response.headers().firstValue("X-Trace-Id").orElseThrow();
   }
@@ -77,7 +95,7 @@ class AuditLogTest extends ApiTestSupport {
   /** 该 traceId 的审计行，必须恰好一行。 */
   private Map<String, Object> singleRow(String traceId) {
     List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-        "SELECT account, action, object_type, object_id, ip, created_at FROM audit_log WHERE trace_id = ?",
+        "SELECT account, action, object_type, object_id, detail, ip, created_at FROM audit_log WHERE trace_id = ?",
         traceId);
     assertEquals(1, rows.size(), "traceId " + traceId + " 的审计行数应为 1：" + rows);
     return rows.get(0);
