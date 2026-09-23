@@ -47,3 +47,8 @@ java -jar backend/target/zentao.jar --spring.profiles.active=prod
 backend/    Spring Boot 应用（src/main/java/net/zentao 下按域分包，每域 api/app/domain/infra 四层）
 contract/   openapi.yaml —— 前后端共享的 API 唯一真源
 ```
+
+## 许可与来源
+
+本仓库是禅道（ZenTao）开源版管理后台的独立重写实现，上游为 <https://gitee.com/wwccss/zentaopms>，
+以上游双授权中的 **AGPL-3.0** 发布。衍生范围、来源说明与商标声明见 [NOTICE.md](NOTICE.md)，许可全文见 [LICENSE](LICENSE)。
