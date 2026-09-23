@@ -5,6 +5,7 @@ import com.mybatisflex.core.query.QueryWrapper;
 import java.util.Map;
 import net.zentao.platform.activity.ActivityQueryService;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.quality.api.BugApi;
 import net.zentao.requirement.api.StoryApi;
@@ -90,7 +91,7 @@ public class MyQueryService {
     String key = role == null || role.isBlank() ? "assignee" : role;
     String field = roles.get(key);
     if (field == null) {
-      throw ApiException.badRequest("非法的 role 取值：" + role);
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "my.filter.roleInvalid", role);
     }
     return field;
   }

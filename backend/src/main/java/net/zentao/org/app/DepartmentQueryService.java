@@ -16,6 +16,7 @@ import net.zentao.org.domain.DepartmentRepository;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -95,8 +96,7 @@ public class DepartmentQueryService implements DepartmentApi {
             nameOf(names, department.parentId()), department.path(), department.grade(), department.sort(),
             department.manager()))
         .toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, COLUMNS::get, value -> Optional.empty(), keyword);
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), COLUMNS::get, value -> Optional.empty(), keyword);
     return new DepartmentList(items, repository.countByQuery(countQuery));
   }
 
@@ -104,7 +104,7 @@ public class DepartmentQueryService implements DepartmentApi {
     if (q == null || q.isBlank()) {
       return null;
     }
-    return new QueryColumn("name").like("%" + q + "%");
+    return new QueryColumn("name").likeRaw(LikePatterns.contains(q));
   }
 
   private Map<Long, List<Department>> childrenOf(List<Department> all) {

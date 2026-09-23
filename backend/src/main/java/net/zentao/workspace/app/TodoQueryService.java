@@ -10,6 +10,7 @@ import java.util.Set;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.rbac.DataScope;
 import net.zentao.platform.search.SearchResultView;
 import net.zentao.platform.session.SessionPrincipal;
@@ -67,25 +68,24 @@ public class TodoQueryService {
     List<Todo> todos = repository.queryPage(query, filters.offset(), filters.limit());
     Map<Long, String> titles = titleResolver.resolveAll(todos);
     List<TodoView> items = todos.stream().map(todo -> TodoView.of(todo, titles.get(todo.id()))).toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
     QueryWrapper countQuery =
-        FilterPredicate.compile(countFilters, COLUMNS::get, value -> special(value, principal), injected);
+        FilterPredicate.compile(filters.forCount(), COLUMNS::get, value -> special(value, principal), injected);
     return new TodoList(items, repository.countByQuery(countQuery));
   }
 
   /** 待办详情（§7：不存在 → 40401；私有且非当事人 → 40302）。 */
   public TodoView detail(SessionPrincipal principal, long todoId) {
     Todo todo = repository.findActiveById(todoId)
-        .orElseThrow(() -> net.zentao.platform.error.ApiException.notFound("待办"));
+        .orElseThrow(() -> net.zentao.platform.error.ApiException.notFound("entity.todo"));
     TodoAccess.requireReadable(principal.account(), todo, dataScope.isSuperAdmin(principal));
     return TodoView.of(todo, titleResolver.resolve(todo));
   }
 
   /** 全局搜索 scope=todo（platform 卡 §5.2）：searchable=title，同样先注入归属条件。 */
   public List<SearchResultView> search(String q, int limit, SessionPrincipal principal) {
-    String like = "%" + q + "%";
+    String like = LikePatterns.contains(q);
     QueryWrapper query = QueryWrapper.create()
-        .where(base(principal).and(new QueryColumn("title").like(like)))
+        .where(base(principal).and(new QueryColumn("title").likeRaw(like)))
         .orderBy(new QueryColumn("updated_at").desc(), new QueryColumn("id").desc()) // banned-words-ok：MyBatis-Flex 构造器方法名
         .limit(limit);
     return repository.queryPage(query, 0, limit).stream()
@@ -104,7 +104,7 @@ public class TodoQueryService {
   }
 
   private QueryCondition keywordCondition(String q) {
-    return q == null || q.isBlank() ? null : new QueryColumn("title").like("%" + q + "%");
+    return q == null || q.isBlank() ? null : new QueryColumn("title").likeRaw(LikePatterns.contains(q));
   }
 
   private static Optional<String> special(String value, SessionPrincipal principal) {

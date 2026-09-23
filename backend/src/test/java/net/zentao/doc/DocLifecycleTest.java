@@ -172,7 +172,7 @@ class DocLifecycleTest extends ApiTestSupport {
         "{\"title\":\"发布计数改\",\"lockVersion\":" + current.at("/lockVersion").asInt() + "}", admin);
     assertEquals(200, patched.statusCode(), patched.body());
 
-    assertEquals(200, send("POST", "/api/v1/docs/" + publishedId + "/delete", "{}", admin).statusCode());
+    assertEquals(200, send("DELETE", "/api/v1/docs/" + publishedId, null, admin).statusCode());
     assertEquals(404, send("GET", "/api/v1/docs/" + publishedId, null, admin).statusCode());
   }
 
@@ -205,7 +205,7 @@ class DocLifecycleTest extends ApiTestSupport {
     assertEquals(root, subtree.at("/items/0/id").asLong(), subtree.toString());
 
     // 删父文档：子文档一并软删
-    assertEquals(200, send("POST", "/api/v1/docs/" + root + "/delete", "{}", admin).statusCode());
+    assertEquals(200, send("DELETE", "/api/v1/docs/" + root, null, admin).statusCode());
     assertEquals(404, send("GET", "/api/v1/docs/" + child, null, admin).statusCode());
     assertEquals(404, send("GET", "/api/v1/docs/" + leaf, null, admin).statusCode());
   }

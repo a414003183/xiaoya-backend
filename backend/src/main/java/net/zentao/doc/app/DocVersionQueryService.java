@@ -7,6 +7,7 @@ import net.zentao.doc.domain.Doc;
 import net.zentao.doc.domain.DocVersion;
 import net.zentao.doc.domain.DocVersionRepository;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import org.springframework.stereotype.Component;
 
@@ -33,10 +34,10 @@ public class DocVersionQueryService {
   public DocVersionView get(SessionPrincipal principal, long docId, int version) {
     Doc doc = access.requireReadableDoc(principal, docId);
     if (version == DocVersion.DRAFT_VERSION && !access.canEdit(doc, principal)) {
-      throw ApiException.dataForbidden("无权读取该文档的草稿正文。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "doc.guard.draftForbidden");
     }
     DocVersion found = versionRepository.findByDocAndVersion(docId, version)
-        .orElseThrow(() -> ApiException.notFound("文档版本"));
+        .orElseThrow(() -> ApiException.notFound("entity.docVersion"));
     return DocVersionView.of(found);
   }
 }

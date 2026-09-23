@@ -8,6 +8,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import net.zentao.org.api.AccountApi;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.meta.FieldDefValidator;
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.error.ApiException;
@@ -107,7 +108,7 @@ public class CreateProjectHandler {
     if (command.endDate() == null) {
       throw ApiException.validation(Map.of("endDate", "required"));
     }
-    Project parentProject = repository.findActiveById(parent.id()).orElseThrow(() -> ApiException.notFound("项目"));
+    Project parentProject = repository.findActiveById(parent.id()).orElseThrow(() -> ApiException.notFound("entity.project"));
     return ProjectView.of(create(actor, executionType, parentProject, command, command.productIds()));
   }
 
@@ -194,7 +195,7 @@ public class CreateProjectHandler {
       throw ApiException.validation(Map.of("parentId", "invalid"));
     }
     if (!projectApi.canAccess(actor, parentId)) {
-      throw ApiException.dataForbidden("无权访问上级项目。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "project.guard.forbiddenParent");
     }
     return parent;
   }

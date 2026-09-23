@@ -24,7 +24,7 @@ public class DictController {
   @GetMapping("/dicts/{name}")
   @Operation(operationId = "getDict")
   public DataEnvelope<DictView> getDict(@PathVariable String name) {
-    var provider = registry.get(name).orElseThrow(() -> ApiException.notFound("字典 " + name));
+    var provider = registry.get(name).orElseThrow(() -> ApiException.notFound("entity.dict"));
     return DataEnvelope.of(new DictView(name, provider.items()));
   }
 

@@ -10,6 +10,7 @@ import java.util.Set;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.project.api.ExecutionApi;
 import net.zentao.task.api.EffortView;
@@ -55,7 +56,7 @@ public class EffortQueryService {
     QueryCondition injected = new QueryColumn("deleted_at").isNull().and(new QueryColumn("task_id").eq(taskId));
     String q = filters.q();
     if (q != null && !q.isBlank()) {
-      injected = injected.and(new QueryColumn("work").like("%" + q + "%"));
+      injected = injected.and(new QueryColumn("work").likeRaw(LikePatterns.contains(q)));
     }
     java.util.function.Function<String, Optional<String>> specials =
         value -> "@me".equals(value) ? Optional.of(principal.account()) : Optional.empty();
@@ -67,8 +68,7 @@ public class EffortQueryService {
     List<EffortView> items = effortRepository.queryPage(query, filters.offset(), filters.limit()).stream()
         .map(EffortView::of)
         .toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, COLUMNS::get, specials, injected);
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), COLUMNS::get, specials, injected);
     return new EffortList(items, effortRepository.countByQuery(countQuery));
   }
 }

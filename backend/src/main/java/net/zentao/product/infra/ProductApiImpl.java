@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.rbac.DataScope;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.ProductApi;
@@ -52,11 +53,11 @@ public class ProductApiImpl implements ProductApi {
 
   @Override
   public ProductView requireVisible(SessionPrincipal principal, long productId) {
-    Product product = repository.findActiveById(productId).orElseThrow(() -> ApiException.notFound("产品"));
+    Product product = repository.findActiveById(productId).orElseThrow(() -> ApiException.notFound("entity.product"));
     boolean visible = ProductVisibility.isVisible(product, principal.account(), dataScope.isSuperAdmin(principal))
         || dataScope.aclUnion(principal).products().contains(productId);
     if (!visible) {
-      throw ApiException.dataForbidden("无权访问该产品。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "product.guard.forbidden");
     }
     return ProductView.of(product);
   }

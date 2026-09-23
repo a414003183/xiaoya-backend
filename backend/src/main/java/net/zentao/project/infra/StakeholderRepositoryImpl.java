@@ -63,6 +63,7 @@ public class StakeholderRepositoryImpl implements StakeholderRepository {
 
   @Override
   public void softDelete(long id, String actor) {
+    // soft-delete-ok：V8 的 stakeholder 表无 lock_version 列（无版本可推；补列属 T54 遗留）
     Db.updateByCondition("stakeholder",
         Row.of("deleted_at", Instant.now()).set("updated_by", actor).set("updated_at", Instant.now()),
         new QueryColumn("id").eq(id));

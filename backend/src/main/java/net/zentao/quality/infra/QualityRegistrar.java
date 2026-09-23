@@ -1,7 +1,13 @@
 package net.zentao.quality.infra;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import net.zentao.platform.activity.ObjectVisibilityRegistry;
+import net.zentao.platform.audit.AuditCatalog;
+import net.zentao.platform.audit.AuditCategory;
+import net.zentao.platform.audit.AuditLevel;
+import net.zentao.platform.audit.AuditSnapshotRegistry;
 import net.zentao.platform.meta.DictRegistry;
 import net.zentao.platform.meta.MetaRegistry;
 import net.zentao.platform.meta.MetaView;
@@ -9,20 +15,31 @@ import net.zentao.platform.rbac.PrivilegeCatalog;
 import net.zentao.platform.search.SearchRegistry;
 import net.zentao.platform.search.SearchScope;
 import net.zentao.platform.workflow.WorkflowRegistry;
+import net.zentao.product.api.ProductApi;
 import net.zentao.quality.app.BugQueryService;
 import net.zentao.quality.app.TestCaseQueryService;
+import net.zentao.quality.domain.BugRepository;
+import net.zentao.quality.domain.ReportRepository;
+import net.zentao.quality.domain.SuiteRepository;
+import net.zentao.quality.domain.TestCaseRepository;
+import net.zentao.quality.domain.TestRunRepository;
 import org.springframework.context.annotation.Configuration;
 
 /**
  * quality → platform 反向注册（A3 不破坏：域主动调用 platform 注册口）。
- * 权限码：quality 卡 §5 全集；meta：bug（字段 + 动作 + 状态可视化）；搜索 scope：bug。
+ * 权限码：quality 卡 §5 全集；meta：bug（字段 + 动作 + 状态可视化）；搜索 scope：bug；
+ * 对象可见性：bug/testCase（附件/评论的行级数据权限，platform 卡 §7.2）。
  */
 @Configuration
 public class QualityRegistrar {
 
   public QualityRegistrar(MetaRegistry metaRegistry, PrivilegeCatalog privilegeCatalog,
       WorkflowRegistry workflowRegistry, SearchRegistry searchRegistry, DictRegistry dictRegistry,
-      BugQueryService bugQueryService, TestCaseQueryService testCaseQueryService) {
+      BugQueryService bugQueryService, TestCaseQueryService testCaseQueryService,
+      ObjectVisibilityRegistry visibilityRegistry, BugRepository bugRepository,
+      TestCaseRepository testCaseRepository, ProductApi productApi, SuiteRepository suiteRepository,
+      TestRunRepository testRunRepository, ReportRepository reportRepository, AuditCatalog auditCatalog,
+      AuditSnapshotRegistry auditSnapshots) {
     privilegeCatalog.register("bug", List.of(
         "bug-view", "bug-create", "bug-edit", "bug-confirm", "bug-resolve", "bug-activate", "bug-close",
         "bug-assign", "bug-delete"));
@@ -272,5 +289,160 @@ public class QualityRegistrar {
         new MetaView.MetaList(List.of("id", "title", "owner", "beginDate", "endDate", "createdBy"), "-id"),
         List.of(),
         Map.of()));
+
+    // 对象可见性（T49 / platform 卡 §7.2）：缺陷/用例可见 ⇔ 其产品可见（与列表 DataScope 同口径）
+    visibilityRegistry.register("bug", (principal, bugId) -> bugRepository.findActiveById(bugId)
+        .map(bug -> productApi.canAccess(principal, bug.productId()))
+        .orElse(false));
+    visibilityRegistry.register("testCase", (principal, caseId) -> testCaseRepository.findActiveById(caseId)
+        .map(testCase -> productApi.canAccess(principal, testCase.productId()))
+        .orElse(false));
+
+    // ── 审计分级（T10 / VISION 事项 4 第 4 行「业务增删改 → 对象级 + 关键字段 diff」）──
+    // 分类 + 关键字段（@AuditDiff 留空时回落这里）；create 没有旧值可比 → SUMMARY 且不登记 diff 字段，
+    // 删/改/状态动作登记要比对的关键字段。批量端点共用内置的 batch-operation（BATCH 类），不再重复登记。
+    auditCatalog.register("bug-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("bug-update", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("title", "severity", "priority", "type", "deadline", "executionId", "planId", "storyId"), false);
+    auditCatalog.register("bug-delete", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("title", "status", "assignee"), false);
+    // confirm 是 self 迁移（status 不变），真正会变的是置位与改派
+    auditCatalog.register("bug-confirm", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("confirmed", "assignee"), false);
+    auditCatalog.register("bug-resolve", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("status", "resolution", "assignee", "storyId"), false);
+    auditCatalog.register("bug-activate", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("status", "resolution", "assignee", "activatedCount"), false);
+    auditCatalog.register("bug-close", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("bug-assign", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("assignee"), false);
+
+    auditCatalog.register("testCase-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("testCase-import-from-library", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("testCase-update", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("title", "priority", "type", "stage", "status", "storyId"), false);
+    auditCatalog.register("testCase-delete", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("title", "status"), false);
+    // 评审类（VISION 事项 4 第 9 行）：approve 分类 + 前后整快照（最后一参数 true）
+    auditCatalog.register("testCase-review", AuditCategory.APPROVE, AuditLevel.FULL,
+        List.of("status", "reviewers"), true);
+
+    auditCatalog.register("testRun-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("testRun-update", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "owner", "priority", "type", "beginDate", "endDate", "buildId"), false);
+    auditCatalog.register("testRun-delete", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "status"), false);
+    auditCatalog.register("testRun-start", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("testRun-block", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("testRun-activate", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("testRun-close", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    // record-result 是 self 迁移：改的是关联用例的结果行，测试单自身字段不变，diff 通常为空
+    auditCatalog.register("testRun-record-result", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    // 关系/指派类只记「发生了」（对象自身的关键字段不变）→ SUMMARY，无 diff
+    auditCatalog.register("testRun-link-cases", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("testRun-unlink-cases", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("testRun-assign-case", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+
+    auditCatalog.register("suite-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("suite-update", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "type", "sort"), false);
+    auditCatalog.register("suite-delete", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("name", "type"), false);
+    auditCatalog.register("suite-link-cases", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("suite-unlink-cases", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+
+    auditCatalog.register("library-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("library-update", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("name"), false);
+    auditCatalog.register("library-delete", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("name"), false);
+
+    auditCatalog.register("report-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("report-update", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("title", "owner", "beginDate", "endDate", "testRunIds"), false);
+    auditCatalog.register("report-delete", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("title"), false);
+
+    // 快照 provider：**每次返回新 Map**（框架留着 before 再取 after 比对，同一个可变 Map 会让 diff 恒为空）；
+    // 字段用 LinkedHashMap 装（Map.of 不收 null，而 assignee/planId/deadline 这类字段可以为空）。
+    // 只放审计关心的关键字段——steps/precondition/description/content 这类长文本一律不进快照。
+    auditSnapshots.register("bug", bugId -> bugRepository.findActiveById(bugId)
+        .map(bug -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("title", bug.title());
+          snapshot.put("status", bug.status());
+          snapshot.put("severity", bug.severity());
+          snapshot.put("priority", bug.priority());
+          snapshot.put("type", bug.type());
+          snapshot.put("assignee", bug.assignee());
+          snapshot.put("confirmed", bug.confirmed());
+          snapshot.put("deadline", bug.deadline());
+          snapshot.put("resolution", bug.resolution());
+          snapshot.put("activatedCount", bug.activatedCount());
+          snapshot.put("productId", bug.productId());
+          snapshot.put("executionId", bug.executionId());
+          snapshot.put("planId", bug.planId());
+          snapshot.put("storyId", bug.storyId());
+          return snapshot;
+        })
+        .orElse(null));
+    auditSnapshots.register("testCase", caseId -> testCaseRepository.findActiveById(caseId)
+        .map(testCase -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("title", testCase.title());
+          snapshot.put("status", testCase.status());
+          snapshot.put("priority", testCase.priority());
+          snapshot.put("type", testCase.type());
+          snapshot.put("stage", testCase.stage());
+          snapshot.put("storyId", testCase.storyId());
+          snapshot.put("reviewers", testCase.reviewers());
+          snapshot.put("lastRunResult", testCase.lastRunResult());
+          snapshot.put("productId", testCase.productId());
+          snapshot.put("libraryId", testCase.libraryId());
+          return snapshot;
+        })
+        .orElse(null));
+    auditSnapshots.register("testRun", testRunId -> testRunRepository.findActiveById(testRunId)
+        .map(testRun -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("name", testRun.name());
+          snapshot.put("status", testRun.status());
+          snapshot.put("owner", testRun.owner());
+          snapshot.put("priority", testRun.priority());
+          snapshot.put("type", testRun.type());
+          snapshot.put("beginDate", testRun.beginDate());
+          snapshot.put("endDate", testRun.endDate());
+          snapshot.put("buildId", testRun.buildId());
+          snapshot.put("executionId", testRun.executionId());
+          snapshot.put("reportId", testRun.reportId());
+          return snapshot;
+        })
+        .orElse(null));
+    auditSnapshots.register("suite", suiteId -> suiteRepository.findActiveById(suiteId)
+        .map(suite -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("name", suite.name());
+          snapshot.put("type", suite.type());
+          snapshot.put("sort", suite.sort());
+          snapshot.put("productId", suite.productId());
+          return snapshot;
+        })
+        .orElse(null));
+    // 用例库与套件同表两义（type=library）：查的是同一份数据，只是对象类型名各登记一次
+    auditSnapshots.register("library", libraryId -> suiteRepository.findActiveById(libraryId)
+        .map(library -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("name", library.name());
+          snapshot.put("type", library.type());
+          return snapshot;
+        })
+        .orElse(null));
+    auditSnapshots.register("report", reportId -> reportRepository.findActiveById(reportId)
+        .map(report -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("title", report.title());
+          snapshot.put("owner", report.owner());
+          snapshot.put("beginDate", report.beginDate());
+          snapshot.put("endDate", report.endDate());
+          snapshot.put("testRunIds", report.testRunIds());
+          snapshot.put("executionId", report.executionId());
+          return snapshot;
+        })
+        .orElse(null));
   }
 }

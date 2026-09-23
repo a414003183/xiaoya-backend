@@ -63,10 +63,10 @@ class StoryWorkflowTest extends net.zentao.H2TestSupport {
     if (productGroupId != 0) {
       return productGroupId;
     }
-    HttpResponse<String> group = send("POST", "/api/v1/groups", "{\"name\":\"需求测试组\"}", adminCookie);
+    HttpResponse<String> group = send("POST", "/api/v1/roles", "{\"name\":\"需求测试组\"}", adminCookie);
     assertEquals(200, group.statusCode(), group.body());
     productGroupId = json.readTree(group.body()).at("/data/id").asLong();
-    send("PUT", "/api/v1/groups/" + productGroupId + "/privileges",
+    send("PUT", "/api/v1/roles/" + productGroupId + "/privileges",
         "{\"codes\":[\"product-view\",\"story-view\",\"story-create\",\"story-edit\",\"story-submit-review\","
             + "\"story-pass\",\"story-change\",\"story-close\",\"story-activate\",\"story-assign\"]}",
         adminCookie);
@@ -76,7 +76,7 @@ class StoryWorkflowTest extends net.zentao.H2TestSupport {
   private void ensureAccount(String account) throws Exception {
     send("POST", "/api/v1/accounts",
         "{\"account\":\"" + account + "\",\"password\":\"secret123\",\"realName\":\"" + account
-            + "\",\"groupIds\":[" + ensureGroup() + "]}",
+            + "\",\"roleIds\":[" + ensureGroup() + "]}",
         adminCookie);
   }
 

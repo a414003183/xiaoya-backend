@@ -3,6 +3,7 @@ package net.zentao.platform.activity;
 import com.mybatisflex.core.query.QueryColumn;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import net.zentao.platform.filters.LikePatterns;
 import org.springframework.stereotype.Component;
 
 /** comment 表读写（platform 卡 §3.3）。 */
@@ -27,7 +28,7 @@ public class CommentRepository {
   public Map<String, Object> page(String objectType, long objectId, String q, int page, int limit) {
     var condition = OBJECT_TYPE.eq(objectType).and(OBJECT_ID.eq(objectId));
     if (q != null && !q.isBlank()) {
-      condition = condition.and(CONTENT.like("%" + q + "%"));
+      condition = condition.and(CONTENT.likeRaw(LikePatterns.contains(q)));
     }
     long total = mapper.selectCountByQuery(com.mybatisflex.core.query.QueryWrapper.create().where(condition));
     var rows = mapper.selectListByQuery(com.mybatisflex.core.query.QueryWrapper.create()

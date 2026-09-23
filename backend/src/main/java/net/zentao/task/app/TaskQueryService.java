@@ -11,6 +11,7 @@ import java.util.Set;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.search.SearchResultView;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.project.api.ExecutionApi;
@@ -95,8 +96,7 @@ public class TaskQueryService {
     QueryWrapper query = FilterPredicate.compile(filters, COLUMNS::get, specials(principal), injected);
     List<Task> tasks = repository.queryPage(query, filters.offset(), filters.limit());
     List<TaskView> items = withStoryTitles(tasks);
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, COLUMNS::get, specials(principal), injected);
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), COLUMNS::get, specials(principal), injected);
     return new TaskList(items, repository.countByQuery(countQuery));
   }
 
@@ -157,9 +157,9 @@ public class TaskQueryService {
    * 命中 title/keywords，按 updatedAt 倒序取 limit 条。
    */
   public List<SearchResultView> search(String q, int limit, SessionPrincipal principal) {
-    String like = "%" + q + "%";
+    String like = LikePatterns.contains(q);
     QueryCondition injected = new QueryColumn("deleted_at").isNull()
-        .and(new QueryColumn("title").like(like).or(new QueryColumn("keywords").like(like)));
+        .and(new QueryColumn("title").likeRaw(like).or(new QueryColumn("keywords").likeRaw(like)));
     ExecutionApi.ExecutionScope scope = executionApi.executionScope(principal);
     if (!scope.visibleToAll()) {
       injected = injected.and(new QueryColumn("execution_id")
@@ -187,7 +187,7 @@ public class TaskQueryService {
     if (q == null || q.isBlank()) {
       return null;
     }
-    String like = "%" + q + "%";
-    return new QueryColumn("title").like(like).or(new QueryColumn("keywords").like(like));
+    String like = LikePatterns.contains(q);
+    return new QueryColumn("title").likeRaw(like).or(new QueryColumn("keywords").likeRaw(like));
   }
 }

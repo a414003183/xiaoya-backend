@@ -2,6 +2,7 @@ package net.zentao.task.infra.web;
 
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
+import net.zentao.platform.audit.Audit;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.DataEnvelope;
@@ -45,6 +46,7 @@ public class ExecutionTaskController {
   @PostMapping("/executions/{executionId}/tasks")
   @Operation(operationId = "createTask")
   @RequirePrivilege("task-create")
+  @Audit(action = "task-create", objectType = "task")
   public DataEnvelope<TaskView> create(@PathVariable long executionId,
       @RequestBody CreateTaskHandler.TaskCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(createHandler.handle(resolver.resolve(request), executionId, body));
@@ -53,6 +55,7 @@ public class ExecutionTaskController {
   @PostMapping("/executions/{executionId}/tasks/batch")
   @Operation(operationId = "batchCreateTasks")
   @RequirePrivilege("task-create")
+  @Audit(action = "batch-operation", objectType = "task")
   public DataEnvelope<BatchCreateTasksHandler.TaskBatchCreateResult> batchCreate(@PathVariable long executionId,
       @RequestBody BatchCreateTasksHandler.TaskBatchCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(batchCreateHandler.handle(resolver.resolve(request), executionId, body));

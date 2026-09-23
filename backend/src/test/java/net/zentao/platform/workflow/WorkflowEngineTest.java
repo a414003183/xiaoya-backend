@@ -69,7 +69,8 @@ class WorkflowEngineTest {
     ApiException error = assertThrows(ApiException.class, () -> engine.fire(story, "submit-review"));
 
     assertEquals(ErrorCode.GUARD_NOT_SATISFIED, error.errorCode());
-    assertTrue(error.getMessage().contains("reviewers-required"), error.getMessage());
+    assertEquals("workflow.guard.notSatisfied", error.messageKey());
+    assertEquals("reviewers-required", error.messageArgs()[0], "守卫名随参数带出（T23：文案走键，名字走参数）");
     assertEquals("draft", story.status());
   }
 
@@ -79,7 +80,8 @@ class WorkflowEngineTest {
     FixtureTarget story = story(9105, "reviewing").with("createdBy", "admin");
 
     ApiException error = assertThrows(ApiException.class, () -> engine.fire(story, "reject"));
-    assertTrue(error.getMessage().contains("comment-required"), error.getMessage());
+    assertEquals("workflow.guard.notSatisfied", error.messageKey());
+    assertEquals("comment-required", error.messageArgs()[0]);
 
     engine.fire(story, "reject", "请补充验收标准");
     assertEquals("draft", story.status());
@@ -93,7 +95,7 @@ class WorkflowEngineTest {
     FixtureTarget story = story(9106, "active").with("closedReason", "duplicate");
 
     ApiException error = assertThrows(ApiException.class, () -> engine.fire(story, "close"));
-    assertTrue(error.getMessage().contains("duplicate-of-required"), error.getMessage());
+    assertEquals("duplicate-of-required", error.messageArgs()[0]);
 
     story.with("duplicateOfId", 42L);
     engine.fire(story, "close");
@@ -143,12 +145,11 @@ class WorkflowEngineTest {
     FixtureTarget wrongType = new FixtureTarget("plan", 9204, "admin", "doing")
         .with("title", "计划-bad").with("objectType", "doc").with("ids", List.of(1L));
     ApiException error = assertThrows(ApiException.class, () -> engine.fire(wrongType, "link"));
-    assertTrue(error.getMessage().contains("object-type"), error.getMessage());
+    assertEquals("object-type", error.messageArgs()[0]);
 
     FixtureTarget emptyIds = new FixtureTarget("plan", 9205, "admin", "doing")
         .with("title", "计划-empty").with("objectType", "bug").with("ids", List.of());
-    assertTrue(assertThrows(ApiException.class, () -> engine.fire(emptyIds, "link"))
-        .getMessage().contains("ids-required"));
+    assertEquals("ids-required", assertThrows(ApiException.class, () -> engine.fire(emptyIds, "link")).messageArgs()[0]);
   }
 
   @Test

@@ -8,6 +8,7 @@ import java.util.Map;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.session.SessionPrincipal;
 import org.springframework.stereotype.Component;
 
@@ -45,7 +46,7 @@ public class NotificationQueryService {
     Filters filters = Filters.parse(params, REGISTRY);
     QueryCondition injected = RECIPIENT.eq(principal.account()).and(DELETED_AT.isNull());
     if (filters.q() != null) {
-      injected = injected.and(TITLE.like("%" + filters.q() + "%").or(CONTENT.like("%" + filters.q() + "%")));
+      injected = injected.and(TITLE.likeRaw(LikePatterns.contains(filters.q())).or(CONTENT.likeRaw(LikePatterns.contains(filters.q()))));
     }
     QueryWrapper query = FilterPredicate.compile(filters, COLUMNS::get, value -> java.util.Optional.empty(), injected);
     List<NotificationView> items = repository.page(principal.account(), query, filters.offset(), filters.limit())
@@ -53,8 +54,7 @@ public class NotificationQueryService {
         .map(NotificationViews::toView)
         .toList();
     // count 与 page 同条件（去 order/limit）
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, COLUMNS::get, value -> java.util.Optional.empty(), injected);
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), COLUMNS::get, value -> java.util.Optional.empty(), injected);
     return new NotificationList(items, repository.countByQuery(countQuery));
   }
 

@@ -1,6 +1,7 @@
 package net.zentao.platform.notification;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.BufferedReader;
@@ -22,6 +23,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * SSE 协议（platform 卡 §5.1/§8）：新通知推送 notification.created、心跳 ping、
@@ -38,6 +40,9 @@ class NotificationSseTest {
 
   @Autowired
   NotificationRecorder recorder;
+
+  @Autowired
+  NotificationSseRegistry registry;
 
   @Autowired
   DataSource dataSource;
@@ -178,6 +183,31 @@ class NotificationSseTest {
         HttpResponse.BodyHandlers.ofString());
     assertEquals(429, sixth.statusCode(), sixth.body());
     assertTrue(sixth.body().contains("42901"), sixth.body());
+  }
+
+  @Test
+  @DisplayName("T57/BE-11：推送失败的连接被彻底移除（列表 + initialized + 空账号键），不再慢泄漏")
+  void failedConnectionIsFullyDetached() throws Exception {
+    // 用真 HTTP 建一条连接（走 subscribe 的完整路径），再把它替换成一条"一推就炸"的连接
+    HttpResponse<java.io.InputStream> stream = openStream(null);
+    assertEquals(200, stream.statusCode());
+    stream.body().close();
+    String leakAccount = "sse-leak-" + java.util.UUID.randomUUID();
+    SseEmitter broken = new SseEmitter(0L) {
+      @Override
+      public void send(SseEventBuilder builder) throws java.io.IOException {
+        throw new java.io.IOException("broken pipe");
+      }
+    };
+    registry.emitters.computeIfAbsent(leakAccount, key -> new java.util.concurrent.CopyOnWriteArrayList<>())
+        .add(broken);
+    registry.initialized.add(broken);
+
+    registry.ping();
+
+    assertTrue(registry.initialized.isEmpty() || !registry.initialized.contains(broken),
+        "initialized 不得留着已移除的连接（旧行为：只 list.remove，连接对象永久泄漏）");
+    assertFalse(registry.emitters.containsKey(leakAccount), "空列表要连同账号键一起清（旧行为：账号维度只增不减）");
   }
 
   private long firstNotificationId() throws Exception {

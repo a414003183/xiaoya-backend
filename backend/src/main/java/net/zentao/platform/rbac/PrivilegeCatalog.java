@@ -21,6 +21,14 @@ public class PrivilegeCatalog {
     register("setting", List.of("setting-manage"));
     register("lang", List.of("lang-manage"));
     register("audit", List.of("audit-log-view"));
+    // T13 P1-1：在线用户（看列表 / 强退分开授权——只读审计员不必能踢人）
+    register("online-user", List.of("online-user-view", "online-user-kick"));
+    // T14 P1-2：运行时接口文档（/v3/api-docs、/swagger-ui 的访问码）
+    register("api-doc", List.of("api-doc-view"));
+    // T17 P1-5：服务监控（只读负载快照）
+    register("monitor", List.of("monitor-view"));
+    // T19 P2-1：菜单管理（合并视图 + DB 菜单行的增删改）
+    register("menu", List.of("menu-manage"));
   }
 
   /** 登记域权限码（幂等合并，保持顺序）。 */

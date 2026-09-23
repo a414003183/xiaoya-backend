@@ -38,7 +38,7 @@ public class UpdateDocSpaceHandler {
   public DocSpace handle(SessionPrincipal actor, long spaceId, DocSpaceUpdateRequest command) {
     DocSpace space = access.requireSpace(actor, spaceId);
     if (command.lockVersion() == null || command.lockVersion() != space.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     Map<String, String> errors = DocFields.errors();
     // PATCH 部分更新（03 §1 null=不修改；契约 DocSpaceUpdateRequest 仅 lockVersion 必填）：name 传值才校验
@@ -60,7 +60,7 @@ public class UpdateDocSpaceHandler {
     }
     space.markUpdatedBy(actor.account());
     DocSpace saved = repository.update(space)
-        .orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+        .orElseThrow(() -> ApiException.lockConflict());
     if (saved.isDefault()) {
       repository.clearDefaultFlag(saved.type(), CreateDocSpaceHandler.ownerId(saved), saved.id());
     }

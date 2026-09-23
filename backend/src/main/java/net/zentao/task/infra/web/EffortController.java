@@ -2,6 +2,8 @@ package net.zentao.task.infra.web;
 
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.DataEnvelope;
@@ -35,6 +37,8 @@ public class EffortController {
   @PatchMapping("/efforts/{effortId}")
   @Operation(operationId = "updateEffort")
   @RequirePrivilege("task-effort-edit")
+  @Audit(action = "effort-update", objectType = "effort")
+  @AuditDiff(objectType = "effort")
   public DataEnvelope<EffortView> update(@PathVariable long effortId, @RequestBody EffortUpdateRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(editHandler.handle(resolver.resolve(request), effortId, body));
@@ -43,6 +47,8 @@ public class EffortController {
   @DeleteMapping("/efforts/{effortId}")
   @Operation(operationId = "deleteEffort")
   @RequirePrivilege("task-effort-delete")
+  @Audit(action = "effort-delete", objectType = "effort")
+  @AuditDiff(objectType = "effort")
   public DataEnvelope<Void> delete(@PathVariable long effortId, HttpServletRequest request) {
     deleteHandler.handle(resolver.resolve(request), effortId);
     return DataEnvelope.empty();

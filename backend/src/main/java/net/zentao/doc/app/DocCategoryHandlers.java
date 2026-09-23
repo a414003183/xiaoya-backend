@@ -13,6 +13,7 @@ import net.zentao.doc.domain.DocCategoryRepository;
 import net.zentao.doc.domain.DocRepository;
 import net.zentao.doc.domain.DocSpace;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,7 +77,7 @@ public class DocCategoryHandlers {
     DocFields.reject(errors);
     category.update(command.name(), command.parentId(), command.sort());
     category.markUpdatedBy(actor.account());
-    return repository.update(category).orElseThrow(() -> ApiException.notFound("文档目录"));
+    return repository.update(category).orElseThrow(() -> ApiException.notFound("entity.docCategory"));
   }
 
   /** 真实删除：有子节点或有文档引用 → 42203（doc 卡 §2）。 */
@@ -85,15 +86,15 @@ public class DocCategoryHandlers {
     DocSpace space = access.requireSpace(actor, docSpaceId);
     DocCategory category = requireInSpace(categoryId, space.id());
     if (repository.countChildren(category.id()) > 0 || docRepository.countLiveByCategory(category.id()) > 0) {
-      throw ApiException.guardNotSatisfied("目录下存在子目录或文档，无法删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "docCategory.guard.notEmpty");
     }
     repository.delete(category.id());
   }
 
   private DocCategory requireInSpace(long categoryId, long spaceId) {
-    DocCategory category = repository.findById(categoryId).orElseThrow(() -> ApiException.notFound("文档目录"));
+    DocCategory category = repository.findById(categoryId).orElseThrow(() -> ApiException.notFound("entity.docCategory"));
     if (category.docSpaceId() != spaceId) {
-      throw ApiException.notFound("文档目录");
+      throw ApiException.notFound("entity.docCategory");
     }
     return category;
   }

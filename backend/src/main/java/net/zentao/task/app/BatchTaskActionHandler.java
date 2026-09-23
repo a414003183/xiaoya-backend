@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
+import net.zentao.platform.i18n.MessageResolver;
 import net.zentao.platform.rbac.PrivilegeChecker;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.web.BatchActionRequest;
@@ -23,13 +25,16 @@ public class BatchTaskActionHandler {
   private final UpdateTaskHandler updateHandler;
   private final PrivilegeChecker checker;
   private final JsonMapper jsonMapper;
+  private final MessageResolver messages;
 
   public BatchTaskActionHandler(TaskActionHandler actionHandler, UpdateTaskHandler updateHandler,
-      PrivilegeChecker checker, JsonMapper jsonMapper) {
+      PrivilegeChecker checker, JsonMapper jsonMapper,
+      MessageResolver messages) {
     this.actionHandler = actionHandler;
     this.updateHandler = updateHandler;
     this.checker = checker;
     this.jsonMapper = jsonMapper;
+    this.messages = messages;
   }
 
   public BatchActionResult handle(SessionPrincipal actor, BatchActionRequest command) {
@@ -38,11 +43,11 @@ public class BatchTaskActionHandler {
     }
     String action = command.action() == null ? "" : command.action();
     if (!List.of("edit", "assign", "start", "pause", "resume", "cancel", "close").contains(action)) {
-      throw ApiException.badRequest("不支持的批量动作：" + action);
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "batch.action.unsupported", action);
     }
     String code = "task-" + action;
     if (!checker.hasPrivilege(actor, code)) {
-      throw ApiException.forbidden("无权限：" + code);
+      throw ApiException.keyed(ErrorCode.FORBIDDEN, "error.privilege.missing", code);
     }
     Map<String, Object> params = command.params();
     List<BatchActionResult.Item> results = new ArrayList<>();
@@ -51,7 +56,7 @@ public class BatchTaskActionHandler {
         apply(actor, id, action, params);
         results.add(BatchActionResult.ok(id));
       } catch (ApiException e) {
-        results.add(BatchActionResult.failed(id, e.errorCode().code() + ":" + e.getMessage()));
+        results.add(BatchActionResult.failed(id, e.errorCode().code() + ":" + messages.forRequest(e)));
       }
     }
     return new BatchActionResult(results);
@@ -67,7 +72,7 @@ public class BatchTaskActionHandler {
       case "pause" -> actionHandler.pause(actor, taskId, comment(params));
       case "resume" -> actionHandler.resume(actor, taskId, comment(params));
       case "cancel" -> actionHandler.cancel(actor, taskId, comment(params));
-      default -> throw ApiException.badRequest("不支持的批量动作：" + action);
+      default -> throw ApiException.keyed(ErrorCode.BAD_REQUEST, "batch.action.unsupported", action);
     }
   }
 

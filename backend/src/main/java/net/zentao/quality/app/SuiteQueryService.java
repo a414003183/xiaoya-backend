@@ -9,9 +9,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.ProductApi;
 import net.zentao.quality.api.SuiteList;
@@ -72,20 +74,20 @@ public class SuiteQueryService {
 
   /** 套件前置：40401 → private 非创建者 40302 → 产品不可见 40302（超管不受限）。 */
   Suite requireSuite(SessionPrincipal principal, long suiteId) {
-    Suite suite = repository.findActiveById(suiteId).orElseThrow(() -> ApiException.notFound("套件"));
+    Suite suite = repository.findActiveById(suiteId).orElseThrow(() -> ApiException.notFound("entity.suite"));
     if (suite.isLibrary()) {
       return suite;
     }
     if (!visible(principal, suite)) {
-      throw ApiException.dataForbidden("无权访问该套件。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "suite.guard.forbidden");
     }
     return suite;
   }
 
   Suite requireLibrary(long libraryId) {
-    Suite suite = repository.findActiveById(libraryId).orElseThrow(() -> ApiException.notFound("用例库"));
+    Suite suite = repository.findActiveById(libraryId).orElseThrow(() -> ApiException.notFound("entity.library"));
     if (!suite.isLibrary()) {
-      throw ApiException.notFound("用例库");
+      throw ApiException.notFound("entity.library");
     }
     return suite;
   }
@@ -129,8 +131,7 @@ public class SuiteQueryService {
     List<SuiteView> items = suites.stream()
         .map(suite -> SuiteView.listRow(suite, counts.getOrDefault(suite.id(), 0L)))
         .toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, COLUMNS::get, specialOf(principal), injected);
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), COLUMNS::get, specialOf(principal), injected);
     return new SuiteList(items, repository.countByQuery(countQuery));
   }
 
@@ -142,6 +143,6 @@ public class SuiteQueryService {
     if (q == null || q.isBlank()) {
       return null;
     }
-    return new QueryColumn("name").like("%" + q + "%");
+    return new QueryColumn("name").likeRaw(LikePatterns.contains(q));
   }
 }

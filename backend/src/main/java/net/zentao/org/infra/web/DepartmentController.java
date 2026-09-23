@@ -10,6 +10,8 @@ import net.zentao.org.app.DepartmentQueryService;
 import net.zentao.org.app.SaveDepartmentTreeHandler;
 import net.zentao.org.app.UpdateDepartmentHandler;
 import net.zentao.org.domain.Department;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.web.DataEnvelope;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -59,6 +61,7 @@ public class DepartmentController {
   @PostMapping("/departments")
   @Operation(operationId = "createDepartment")
   @RequirePrivilege("department-create")
+  @Audit(action = "department-create", objectType = "department")
   public DataEnvelope<DepartmentNode> create(@RequestBody CreateDepartmentHandler.DepartmentCreateRequest body) {
     return DataEnvelope.of(toNode(createHandler.handle(body)));
   }
@@ -66,6 +69,8 @@ public class DepartmentController {
   @PatchMapping("/departments/{departmentId}")
   @Operation(operationId = "updateDepartment")
   @RequirePrivilege("department-edit")
+  @Audit(action = "department-update", objectType = "department")
+  @AuditDiff(objectType = "department")
   public DataEnvelope<DepartmentNode> update(@PathVariable long departmentId,
       @RequestBody UpdateDepartmentHandler.DepartmentUpdateRequest body) {
     return DataEnvelope.of(toNode(updateHandler.handle(departmentId, body)));
@@ -74,6 +79,7 @@ public class DepartmentController {
   @PutMapping("/departments/tree")
   @Operation(operationId = "saveDepartmentTree")
   @RequirePrivilege("department-edit")
+  @Audit(action = "department-tree-update", objectType = "department")
   public DataEnvelope<DepartmentTree> saveTree(@RequestBody SaveDepartmentTreeHandler.DepartmentTreeSaveRequest body) {
     saveTreeHandler.handle(body);
     return DataEnvelope.of(new DepartmentTree(queryService.tree()));
@@ -82,6 +88,8 @@ public class DepartmentController {
   @DeleteMapping("/departments/{departmentId}")
   @Operation(operationId = "deleteDepartment")
   @RequirePrivilege("department-delete")
+  @Audit(action = "department-delete", objectType = "department")
+  @AuditDiff(objectType = "department")
   public DataEnvelope<Void> delete(@PathVariable long departmentId) {
     deleteHandler.handle(departmentId);
     return DataEnvelope.empty();

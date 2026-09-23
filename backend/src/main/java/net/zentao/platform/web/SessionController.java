@@ -7,8 +7,13 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
+import net.zentao.platform.audit.Audit;
 import net.zentao.platform.audit.AuditRecorder;
+import net.zentao.platform.audit.AuditResult;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.i18n.MessageResolver;
+import net.zentao.platform.error.ErrorCode;
+import net.zentao.platform.rbac.Anonymous;
 import net.zentao.platform.rbac.PrivilegeChecker;
 import net.zentao.platform.session.AccountView;
 import net.zentao.platform.session.LoginHandler;
@@ -16,6 +21,7 @@ import net.zentao.platform.session.LoginAccountGateway;
 import net.zentao.platform.session.LoginRequest;
 import net.zentao.platform.session.LogoutHandler;
 import net.zentao.platform.session.MeView;
+import net.zentao.platform.session.SessionApi;
 import net.zentao.platform.session.SessionPO;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.session.SessionResolver;
@@ -40,9 +46,11 @@ public class SessionController {
   private final LogoutHandler logoutHandler;
   private final LoginAccountGateway gateway;
   private final SessionRepository repository;
+  private final SessionApi sessionApi;
   private final SessionResolver resolver;
   private final PrivilegeChecker privilegeChecker;
   private final AuditRecorder auditRecorder;
+  private final MessageResolver messages;
   private final Duration ttl;
   private final boolean secureCookie;
 
@@ -51,39 +59,47 @@ public class SessionController {
       LogoutHandler logoutHandler,
       LoginAccountGateway gateway,
       SessionRepository repository,
+      SessionApi sessionApi,
       SessionResolver resolver,
       PrivilegeChecker privilegeChecker,
       AuditRecorder auditRecorder,
+      MessageResolver messages,
       @Value("${zentao.session.ttl:7d}") Duration ttl,
       @Value("${zentao.session.secure-cookie:false}") boolean secureCookie) {
     this.loginHandler = loginHandler;
     this.logoutHandler = logoutHandler;
     this.gateway = gateway;
     this.repository = repository;
+    this.sessionApi = sessionApi;
     this.resolver = resolver;
     this.privilegeChecker = privilegeChecker;
     this.auditRecorder = auditRecorder;
+    this.messages = messages;
     this.ttl = ttl;
     this.secureCookie = secureCookie;
   }
 
   @PostMapping("/session")
+  @Anonymous("登录：登录前必然无会话；暴力破解防线在 LoginHandler 的限流 + 账号锁定内")
   public DataEnvelope<AccountView> login(
       @Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
     // L1：登录失败也记账，否则「登录日志」只剩成功记录，看不出谁在什么 IP 试过而没进来。
     // detail 只记失败原因（网关文案本身不区分「账号不存在/口令错」），口令永不落库。
     AccountView account;
     try {
-      account = loginHandler.login(request.account(), request.password());
+      // T58 SEC-14：来源 IP 一并交给限流器（账号维度之外的第二道窗）
+      account = loginHandler.login(request.account(), request.password(), httpRequest.getRemoteAddr());
     } catch (ApiException failure) {
-      auditRecorder.record(request.account(), "login-failed", null, null, failure.getMessage(),
-          httpRequest.getRemoteAddr());
+      // 落库原因走默认语言（审计跨语言可读，见 MessageResolver#reasonOf）。
+      // T04：reason 与 detail 同值——reason 是新列（给 API 消费方），detail 沿用旧口径（登录日志页渲染的就是它），
+      // 改 detail 会让既有页面的「失败原因」列变空。
+      auditRecorder.recordAuth(request.account(), "login-failed", AuditResult.FAIL.value(), messages.reasonOf(failure),
+          messages.reasonOf(failure), httpRequest.getRemoteAddr(), httpRequest.getHeader("User-Agent"));
       throw failure;
     }
     String token = HexFormat.of().formatHex(random32());
     Instant now = Instant.now();
     SessionPO po = new SessionPO();
-    po.setId(token);
     po.setAccountId(account.id());
     po.setAccount(account.account());
     po.setCreatedAt(now);
@@ -91,17 +107,21 @@ public class SessionController {
     po.setLastSeenAt(now);
     po.setIp(httpRequest.getRemoteAddr());
     po.setUserAgent(httpRequest.getHeader("User-Agent"));
-    repository.insert(po);
+    // 明文 token 只用于种 cookie；落库的是它的 sha256（T51 SEC-03，换算在仓库入口）
+    repository.insert(po, token);
+    // T51 SEC-18：同账号会话超上限时踢最旧的（插行之后裁，边界只此一处）
+    sessionApi.enforceConcurrentLimit(account.id());
     httpResponse.addHeader("Set-Cookie", sessionCookie(token, ttl, secureCookie).toString());
-    // B1 §H3：登录是无会话的写请求，AuditAspect 按设计不审（主体未知），故在此显式记账。
-    auditRecorder.record(account.account(), "login", null, null, "POST /api/v1/session", httpRequest.getRemoteAddr());
+    // B1 §H3：登录是无会话的写请求，AuditAspect 按设计不审（主体未知），故在此显式记账（T04 起带 UA/设备）。
+    auditRecorder.recordAuth(account.account(), "login", AuditResult.SUCCESS.value(), null, "POST /api/v1/session",
+        httpRequest.getRemoteAddr(), httpRequest.getHeader("User-Agent"));
     return DataEnvelope.of(account);
   }
 
   @DeleteMapping("/session")
+  @Audit(action = "logout", objectType = "account")
   public DataEnvelope<Void> logout(HttpServletRequest request, HttpServletResponse response) {
-    String token = resolver.currentToken(request);
-    logoutHandler.logout(token);
+    logoutHandler.logout(resolver.resolve(request).sessionId());
     response.addHeader("Set-Cookie", sessionCookie("", Duration.ZERO, secureCookie).toString());
     return DataEnvelope.empty();
   }
@@ -111,7 +131,7 @@ public class SessionController {
     SessionPrincipal principal = resolver.resolve(request);
     AccountView account = gateway.view(principal.accountId());
     if (account == null) {
-      throw ApiException.unauthenticated("未登录或会话已过期。");
+      throw ApiException.keyed(ErrorCode.UNAUTHENTICATED, "error.session.expired");
     }
     return DataEnvelope.of(new MeView(account, privilegeChecker.privilegesOf(principal)));
   }

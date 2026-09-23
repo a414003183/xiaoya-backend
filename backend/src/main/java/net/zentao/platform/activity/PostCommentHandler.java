@@ -2,6 +2,7 @@ package net.zentao.platform.activity;
 
 import java.time.Instant;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,7 +28,7 @@ public class PostCommentHandler {
   @Transactional
   public CommentRepository.CommentView post(SessionPrincipal principal, String objectType, long objectId, String content) {
     if (!visibility.isVisible(principal, objectType, objectId)) {
-      throw ApiException.dataForbidden("对象不可见。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "comment.guard.objectInvisible");
     }
     CommentPO po = new CommentPO();
     po.setObjectType(objectType);

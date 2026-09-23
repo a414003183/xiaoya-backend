@@ -3,6 +3,8 @@ package net.zentao.product.infra.web;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import net.zentao.platform.activity.ActivityQueryService;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.DataEnvelope;
@@ -54,8 +56,9 @@ public class BuildController {
   @PostMapping("/products/{productId}/builds")
   @Operation(operationId = "createBuild")
   @RequirePrivilege("build-create")
+  @Audit(action = "build-create", objectType = "build")
   public DataEnvelope<BuildView> create(@PathVariable long productId,
-      @RequestBody BuildHandlers.BuildCreateRequest body, HttpServletRequest request) {
+      @jakarta.validation.Valid @RequestBody BuildHandlers.BuildCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.create(resolver.resolve(request), productId, body));
   }
 
@@ -69,14 +72,18 @@ public class BuildController {
   @PatchMapping("/builds/{buildId}")
   @Operation(operationId = "updateBuild")
   @RequirePrivilege("build-edit")
+  @Audit(action = "build-update", objectType = "build")
+  @AuditDiff(objectType = "build")
   public DataEnvelope<BuildView> update(@PathVariable long buildId,
-      @RequestBody BuildHandlers.BuildUpdateRequest body, HttpServletRequest request) {
+      @jakarta.validation.Valid @RequestBody BuildHandlers.BuildUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.update(resolver.resolve(request), buildId, body));
   }
 
   @DeleteMapping("/builds/{buildId}")
   @Operation(operationId = "deleteBuild")
   @RequirePrivilege("build-delete")
+  @Audit(action = "build-delete", objectType = "build")
+  @AuditDiff(objectType = "build")
   public DataEnvelope<Void> delete(@PathVariable long buildId, HttpServletRequest request) {
     handlers.delete(resolver.resolve(request), buildId);
     return DataEnvelope.empty();
@@ -99,6 +106,7 @@ public class BuildController {
   @PostMapping("/builds/{buildId}/link")
   @Operation(operationId = "linkBuild")
   @RequirePrivilege("build-link")
+  @Audit(action = "build-link", objectType = "build")
   public DataEnvelope<BuildView> link(@PathVariable long buildId, @RequestBody LinkRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(linkHandler.link(resolver.resolve(request), buildId, body));
@@ -107,6 +115,7 @@ public class BuildController {
   @PostMapping("/builds/{buildId}/unlink")
   @Operation(operationId = "unlinkBuild")
   @RequirePrivilege("build-link")
+  @Audit(action = "build-unlink", objectType = "build")
   public DataEnvelope<BuildView> unlink(@PathVariable long buildId, @RequestBody LinkRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(linkHandler.unlink(resolver.resolve(request), buildId, body));

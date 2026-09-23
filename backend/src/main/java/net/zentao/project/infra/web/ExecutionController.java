@@ -3,6 +3,8 @@ package net.zentao.project.infra.web;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import net.zentao.platform.activity.ActivityQueryService;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.CommentRequest;
@@ -89,6 +91,8 @@ public class ExecutionController {
   @PatchMapping("/executions/{executionId}")
   @Operation(operationId = "updateExecution")
   @RequirePrivilege("execution-edit")
+  @Audit(action = "execution-update", objectType = "execution")
+  @AuditDiff(objectType = "execution")
   public DataEnvelope<ProjectView> update(@PathVariable long executionId, @RequestBody ProjectUpdateRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(updateHandler.handle(resolver.resolve(request), executionId, body));
@@ -97,6 +101,8 @@ public class ExecutionController {
   @DeleteMapping("/executions/{executionId}")
   @Operation(operationId = "deleteExecution")
   @RequirePrivilege("execution-delete")
+  @Audit(action = "execution-delete", objectType = "execution")
+  @AuditDiff(objectType = "execution")
   public DataEnvelope<Void> delete(@PathVariable long executionId, HttpServletRequest request) {
     deleteHandler.handle(resolver.resolve(request), executionId, "execution");
     return DataEnvelope.empty();
@@ -114,6 +120,7 @@ public class ExecutionController {
   @PostMapping("/executions/{executionId}/members")
   @Operation(operationId = "submitExecutionMembers")
   @RequirePrivilege("execution-manage-members")
+  @Audit(action = "execution-member-submit", objectType = "execution")
   public DataEnvelope<SubmitTeamMembersHandler.TeamMemberSubmitResult> submitMembers(@PathVariable long executionId,
       @RequestBody SubmitTeamMembersHandler.TeamMemberSubmitRequest body, HttpServletRequest request) {
     return DataEnvelope.of(submitTeamMembersHandler.handle(resolver.resolve(request), "execution", executionId, body));
@@ -130,6 +137,7 @@ public class ExecutionController {
   @DeleteMapping("/executions/{executionId}/stories/{storyId}")
   @Operation(operationId = "unlinkExecutionStory")
   @RequirePrivilege("execution-edit")
+  @Audit(action = "execution-story-unlink", objectType = "execution")
   public DataEnvelope<Void> unlinkStory(@PathVariable long executionId, @PathVariable long storyId,
       HttpServletRequest request) {
     linkStoriesHandler.unlink(resolver.resolve(request), "execution", executionId, storyId);
@@ -157,6 +165,7 @@ public class ExecutionController {
   @PostMapping("/executions/{executionId}/kanban/cards/{cardId}/move")
   @Operation(operationId = "moveExecutionKanbanCard")
   @RequirePrivilege("execution-edit")
+  @Audit(action = "execution-card-move", objectType = "execution")
   public DataEnvelope<StoryView> moveCard(@PathVariable long executionId, @PathVariable long cardId,
       @RequestBody ExecutionKanbanHandler.ExecutionKanbanMoveRequest body, HttpServletRequest request) {
     return DataEnvelope.of(kanbanHandler.move(resolver.resolve(request), executionId, cardId, body));
@@ -165,6 +174,8 @@ public class ExecutionController {
   @PostMapping("/executions/{executionId}/start")
   @Operation(operationId = "startExecution")
   @RequirePrivilege("execution-start")
+  @Audit(action = "execution-start", objectType = "execution")
+  @AuditDiff(objectType = "execution")
   public DataEnvelope<ProjectView> start(@PathVariable long executionId,
       @RequestBody(required = false) ProjectStartRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.start(resolver.resolve(request), executionId, "execution", body));
@@ -173,6 +184,8 @@ public class ExecutionController {
   @PostMapping("/executions/{executionId}/suspend")
   @Operation(operationId = "suspendExecution")
   @RequirePrivilege("execution-suspend")
+  @Audit(action = "execution-suspend", objectType = "execution")
+  @AuditDiff(objectType = "execution")
   public DataEnvelope<ProjectView> suspend(@PathVariable long executionId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.suspend(resolver.resolve(request), executionId, "execution", comment(body)));
@@ -180,6 +193,8 @@ public class ExecutionController {
   @PostMapping("/executions/{executionId}/resume")
   @Operation(operationId = "resumeExecution")
   @RequirePrivilege("execution-resume")
+  @Audit(action = "execution-resume", objectType = "execution")
+  @AuditDiff(objectType = "execution")
   public DataEnvelope<ProjectView> resume(@PathVariable long executionId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.resume(resolver.resolve(request), executionId, "execution", comment(body)));
@@ -187,6 +202,8 @@ public class ExecutionController {
   @PostMapping("/executions/{executionId}/delay")
   @Operation(operationId = "delayExecution")
   @RequirePrivilege("execution-delay")
+  @Audit(action = "execution-delay", objectType = "execution")
+  @AuditDiff(objectType = "execution")
   public DataEnvelope<ProjectView> delay(@PathVariable long executionId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.delay(resolver.resolve(request), executionId, "execution", comment(body)));
@@ -194,6 +211,8 @@ public class ExecutionController {
   @PostMapping("/executions/{executionId}/close")
   @Operation(operationId = "closeExecution")
   @RequirePrivilege("execution-close")
+  @Audit(action = "execution-close", objectType = "execution")
+  @AuditDiff(objectType = "execution")
   public DataEnvelope<ProjectView> close(@PathVariable long executionId,
       @RequestBody(required = false) ProjectCloseRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.close(resolver.resolve(request), executionId, "execution", body));
@@ -202,6 +221,8 @@ public class ExecutionController {
   @PostMapping("/executions/{executionId}/activate")
   @Operation(operationId = "activateExecution")
   @RequirePrivilege("execution-activate")
+  @Audit(action = "execution-activate", objectType = "execution")
+  @AuditDiff(objectType = "execution")
   public DataEnvelope<ProjectView> activate(@PathVariable long executionId,
       @RequestBody(required = false) ProjectActivateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.activate(resolver.resolve(request), executionId, "execution", body));

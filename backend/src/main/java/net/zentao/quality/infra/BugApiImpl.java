@@ -1,5 +1,7 @@
 package net.zentao.quality.infra;
 
+import net.zentao.platform.error.ErrorCode;
+
 import java.util.List;
 import java.util.Map;
 import net.zentao.platform.session.SessionPrincipal;
@@ -9,7 +11,6 @@ import net.zentao.quality.app.BugQueryService;
 import net.zentao.quality.domain.Bug;
 import net.zentao.quality.domain.BugRepository;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 /** BugApi 真实现（P4 T-1，替换 P2 的 EmptyBugApi；product 域消费面不变）。 */
 @Component
@@ -81,17 +82,18 @@ public class BugApiImpl implements BugApi {
     List<Bug> found = repository.findActiveByIds(distinct);
     if (found.size() != distinct.size() || found.stream().anyMatch(bug -> bug.productId() != productId)) {
       // 与 story 分支同语义（product §4.3 link 守卫）：缺失/跨产品由守卫判 42203
-      throw net.zentao.platform.error.ApiException.guardNotSatisfied("Bug 不存在或不属于该产品。");
+      throw net.zentao.platform.error.ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "bug.guard.notInProduct");
     }
   }
 
+  // T64：linkPlan/unlinkPlan 原各挂一个方法级 @Transactional——单语句（updatePlanId 一条 UPDATE）
+  // 本身就是原子的，注解是冗余且落在 infra 层（BE-08 真债），删除后行为等价：
+  // 在调用方事务内照旧参与外层事务，无外层事务时单语句自动提交。
   @Override
-  @Transactional
   public void linkPlan(List<Long> ids, long planId) {
     repository.updatePlanId(ids, planId);
   }
   @Override
-  @Transactional
   public void unlinkPlan(List<Long> ids, long planId) {
     // ponytail: 同 unlink 语义=置空 plan_id；全量扫描仅在传入 id 集内，升级路径=按 plan_id 批量清列
     repository.updatePlanId(ids, null);

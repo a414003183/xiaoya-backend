@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.product.domain.Plan;
 import net.zentao.product.domain.PlanRepository;
 import org.springframework.stereotype.Component;
@@ -93,7 +94,7 @@ public class PlanRepositoryImpl implements PlanRepository {
 
   @Override
   public void softDelete(long id) {
-    Db.updateByCondition("plan", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
+    SoftDeletes.apply("plan", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
   }
 
   private Plan toDomain(PlanPO po) {

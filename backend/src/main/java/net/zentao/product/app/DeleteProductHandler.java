@@ -1,6 +1,7 @@
 package net.zentao.product.app;
 
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.ProductApi;
 import net.zentao.product.domain.BranchRepository;
@@ -43,19 +44,19 @@ public class DeleteProductHandler {
   public void handle(SessionPrincipal actor, long productId) {
     ProductGuard.requireVisible(repository, productApi, actor, productId);
     if (storyApi.hasActiveStoriesByProduct(productId)) {
-      throw ApiException.guardNotSatisfied("产品下存在未删除的需求，不能删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "product.guard.hasStories");
     }
     if (!branchRepository.findByProductId(productId).isEmpty()) {
-      throw ApiException.guardNotSatisfied("产品下存在未删除的分支，不能删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "product.guard.hasBranches");
     }
     if (planRepository.existsActiveByProduct(productId)) {
-      throw ApiException.guardNotSatisfied("产品下存在未删除的计划，不能删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "product.guard.hasPlans");
     }
     if (releaseRepository.existsActiveByProduct(productId)) {
-      throw ApiException.guardNotSatisfied("产品下存在未删除的发布，不能删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "product.guard.hasReleases");
     }
     if (buildRepository.existsActiveByProduct(productId)) {
-      throw ApiException.guardNotSatisfied("产品下存在未删除的构建，不能删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "product.guard.hasBuilds");
     }
     repository.softDelete(productId);
   }

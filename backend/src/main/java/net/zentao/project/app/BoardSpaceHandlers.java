@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import net.zentao.org.api.AccountApi;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.workflow.WorkflowEngine;
 import net.zentao.project.domain.AclEntryRepository;
@@ -106,7 +107,7 @@ public class BoardSpaceHandlers {
   public BoardSpaceView update(SessionPrincipal actor, long spaceId, BoardSpaceUpdateRequest command) {
     BoardSpace space = require(spaceId);
     if (command.lockVersion() == null || command.lockVersion() != space.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     Map<String, String> errors = new LinkedHashMap<>();
     String name = command.name() == null ? null : requireName(command.name(), errors);
@@ -152,18 +153,18 @@ public class BoardSpaceHandlers {
   public void delete(SessionPrincipal actor, long spaceId) {
     queryService.requireVisibleSpace(actor, spaceId);
     if (boardRepository.countActiveBySpaceId(spaceId) > 0) {
-      throw ApiException.guardNotSatisfied("空间内仍有看板，不能删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "boardSpace.guard.hasBoards");
     }
     repository.softDelete(spaceId);
   }
 
   private BoardSpace require(long spaceId) {
-    return repository.findActiveById(spaceId).orElseThrow(() -> ApiException.notFound("看板空间"));
+    return repository.findActiveById(spaceId).orElseThrow(() -> ApiException.notFound("entity.boardSpace"));
   }
 
   private BoardSpace save(BoardSpace space) {
     return repository.update(space)
-        .orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+        .orElseThrow(() -> ApiException.lockConflict());
   }
 
   private static String requireName(String name, Map<String, String> errors) {

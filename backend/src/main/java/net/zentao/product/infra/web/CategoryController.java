@@ -2,6 +2,8 @@ package net.zentao.product.infra.web;
 
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.DataEnvelope;
@@ -43,6 +45,7 @@ public class CategoryController {
   @PostMapping("/products/{productId}/categories")
   @Operation(operationId = "createCategory")
   @RequirePrivilege("category-manage")
+  @Audit(action = "category-create", objectType = "category")
   public DataEnvelope<CategoryView> create(@PathVariable long productId,
       @RequestBody CategoryHandlers.CategoryCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.create(resolver.resolve(request), productId, body));
@@ -51,6 +54,8 @@ public class CategoryController {
   @PatchMapping("/categories/{categoryId}")
   @Operation(operationId = "updateCategory")
   @RequirePrivilege("category-manage")
+  @Audit(action = "category-update", objectType = "category")
+  @AuditDiff(objectType = "category")
   public DataEnvelope<CategoryView> update(@PathVariable long categoryId,
       @RequestBody CategoryHandlers.CategoryUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.update(resolver.resolve(request), categoryId, body));
@@ -59,6 +64,8 @@ public class CategoryController {
   @DeleteMapping("/categories/{categoryId}")
   @Operation(operationId = "deleteCategory")
   @RequirePrivilege("category-manage")
+  @Audit(action = "category-delete", objectType = "category")
+  @AuditDiff(objectType = "category")
   public DataEnvelope<Void> delete(@PathVariable long categoryId, HttpServletRequest request) {
     handlers.delete(resolver.resolve(request), categoryId);
     return DataEnvelope.empty();

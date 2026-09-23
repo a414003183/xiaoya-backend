@@ -5,6 +5,7 @@ import java.util.Map;
 import net.zentao.org.domain.Department;
 import net.zentao.org.domain.DepartmentRepository;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,9 +27,9 @@ public class UpdateDepartmentHandler {
   @Transactional
   public Department handle(long departmentId, DepartmentUpdateRequest command) {
     Department department = repository.findById(departmentId)
-        .orElseThrow(() -> ApiException.notFound("部门"));
+        .orElseThrow(() -> ApiException.notFound("entity.department"));
     if (command.lockVersion() != null && command.lockVersion() != department.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新。");
+      throw ApiException.lockConflict();
     }
     if (command.name() != null) {
       CreateDepartmentHandler.requireName(command.name());
@@ -44,14 +45,14 @@ public class UpdateDepartmentHandler {
     if (command.parentId() != null && command.parentId() != department.parentId()) {
       moveTo(department, command.parentId());
     }
-    return repository.save(department).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新。"));
+    return repository.save(department).orElseThrow(() -> ApiException.lockConflict());
   }
 
   private void moveTo(Department department, Long newParentId) {
     Department newParent = repository.findById(newParentId)
         .orElseThrow(() -> ApiException.validation(Map.of("parentId", "notFound")));
     if (newParent.id() == department.id() || newParent.isSelfOrDescendant(department.id())) {
-      throw ApiException.guardNotSatisfied("不能移动到自身或其后代部门。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "department.guard.moveIntoSelf");
     }
     int oldGrade = department.grade();
     String oldPath = department.path();

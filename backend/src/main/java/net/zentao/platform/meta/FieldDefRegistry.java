@@ -4,6 +4,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.JsonNode;
@@ -17,6 +19,8 @@ import tools.jackson.databind.json.JsonMapper;
  */
 @Component
 public class FieldDefRegistry {
+
+  private static final Logger log = LoggerFactory.getLogger(FieldDefRegistry.class);
 
   private static final TypeReference<List<FieldDef.FieldDefOption>> OPTION_LIST = new TypeReference<>() {};
 
@@ -60,23 +64,26 @@ public class FieldDefRegistry {
   }
 
   private FieldDef toDef(FieldDefPO po) {
-    JsonNode options = parseTree(po.getOptions());
+    JsonNode options = parseTree(po, "options", po.getOptions());
     List<FieldDef.FieldDefOption> parsed = options != null && options.isArray()
         ? jsonMapper.convertValue(options, OPTION_LIST)
         : List.of();
     return new FieldDef(po.getDomain(), po.getItemKey(), po.getType(),
-        po.getRequired() != null && po.getRequired() == 1, parsed, parseTree(po.getVisibleWhen()),
+        po.getRequired() != null && po.getRequired() == 1, parsed,
+        parseTree(po, "visibleWhen", po.getVisibleWhen()),
         po.getSort() == null ? 0 : po.getSort());
   }
 
-  /** 宽容解析：坏 JSON 视为 null，不炸读路径（与 DataScope.AclParser 同口径）。 */
-  private JsonNode parseTree(String json) {
+  /** 宽容解析：坏 JSON 视为 null，不炸读路径 + WARN 留痕（T57/BE-10；口径与 DataScope.AclParser 一致）。 */
+  private JsonNode parseTree(FieldDefPO po, String column, String json) {
     if (json == null || json.isBlank()) {
       return null;
     }
     try {
       return jsonMapper.readTree(json);
     } catch (Exception e) {
+      log.atWarn().setCause(e).log("field_def.{} 解析失败，按空处理 domain={} itemKey={}",
+          column, po.getDomain(), po.getItemKey());
       return null;
     }
   }

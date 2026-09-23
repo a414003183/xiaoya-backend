@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.quality.domain.Suite;
 import net.zentao.quality.domain.SuiteRepository;
 import org.springframework.stereotype.Component;
@@ -97,7 +98,7 @@ public class SuiteRepositoryImpl implements SuiteRepository {
   @Override
   public void softDelete(long id, String actor, Instant at) {
     // suite_case 关联行保留：套件软删后自然失效（A-07）
-    Db.updateByCondition("suite", Row.of("deleted_at", at).set("updated_by", actor),
+    SoftDeletes.apply("suite", Row.of("deleted_at", at).set("updated_by", actor),
         new QueryColumn("id").eq(id).and(DELETED_AT.isNull()));
   }
 

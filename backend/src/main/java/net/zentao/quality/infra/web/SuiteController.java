@@ -2,6 +2,8 @@ package net.zentao.quality.infra.web;
 
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.DataEnvelope;
@@ -44,6 +46,7 @@ public class SuiteController {
   @PostMapping("/products/{productId}/suites")
   @Operation(operationId = "createSuite")
   @RequirePrivilege("suite-create")
+  @Audit(action = "suite-create", objectType = "suite")
   public DataEnvelope<SuiteView> create(@PathVariable long productId,
       @RequestBody SuiteHandlers.SuiteCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.createSuite(resolver.resolve(request), productId, body));
@@ -59,6 +62,8 @@ public class SuiteController {
   @PatchMapping("/suites/{suiteId}")
   @Operation(operationId = "updateSuite")
   @RequirePrivilege("suite-edit")
+  @Audit(action = "suite-update", objectType = "suite")
+  @AuditDiff(objectType = "suite")
   public DataEnvelope<SuiteView> update(@PathVariable long suiteId,
       @RequestBody SuiteHandlers.SuiteUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.updateSuite(resolver.resolve(request), suiteId, body));
@@ -67,14 +72,18 @@ public class SuiteController {
   @DeleteMapping("/suites/{suiteId}")
   @Operation(operationId = "deleteSuite")
   @RequirePrivilege("suite-delete")
+  @Audit(action = "suite-delete", objectType = "suite")
+  @AuditDiff(objectType = "suite")
   public DataEnvelope<Void> delete(@PathVariable long suiteId, HttpServletRequest request) {
     handlers.deleteSuite(resolver.resolve(request), suiteId);
     return DataEnvelope.empty();
   }
 
+  /** 关联用例：改的是 suite_case 关联行，套件自身关键字段不变 → 只记「发生了」，不采 diff。 */
   @PostMapping("/suites/{suiteId}/link-cases")
   @Operation(operationId = "linkSuiteCases")
   @RequirePrivilege("suite-link-case")
+  @Audit(action = "suite-link-cases", objectType = "suite")
   public DataEnvelope<SuiteView> linkCases(@PathVariable long suiteId,
       @RequestBody SuiteHandlers.SuiteLinkCasesRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.linkCases(resolver.resolve(request), suiteId, body));
@@ -83,6 +92,7 @@ public class SuiteController {
   @PostMapping("/suites/{suiteId}/unlink-cases")
   @Operation(operationId = "unlinkSuiteCases")
   @RequirePrivilege("suite-link-case")
+  @Audit(action = "suite-unlink-cases", objectType = "suite")
   public DataEnvelope<SuiteView> unlinkCases(@PathVariable long suiteId,
       @RequestBody SuiteHandlers.SuiteLinkCasesRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.unlinkCases(resolver.resolve(request), suiteId, body));

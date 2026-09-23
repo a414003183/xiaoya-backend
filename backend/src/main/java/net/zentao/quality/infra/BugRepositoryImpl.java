@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.quality.domain.Bug;
 import net.zentao.quality.domain.BugRepository;
 import org.springframework.stereotype.Component;
@@ -97,7 +98,7 @@ public class BugRepositoryImpl implements BugRepository {
 
   @Override
   public void softDelete(long id, String actor, Instant at) {
-    Db.updateByCondition("bug", Row.of("deleted_at", at).set("updated_by", actor),
+    SoftDeletes.apply("bug", Row.of("deleted_at", at).set("updated_by", actor),
         new QueryColumn("id").eq(id).and(DELETED_AT.isNull()));
   }
 

@@ -64,16 +64,16 @@ class ProjectDataScopeIT extends MySqlContainerSupport {
 
   private void ensureAccount(String account) throws Exception {
     if (viewerGroupId == 0) {
-      viewerGroupId = dataId(send("POST", "/api/v1/groups",
+      viewerGroupId = dataId(send("POST", "/api/v1/roles",
           "{\"name\":\"IT 项目组 " + System.nanoTime() + "\"}", adminCookie));
-      send("PUT", "/api/v1/groups/" + viewerGroupId + "/privileges",
+      send("PUT", "/api/v1/roles/" + viewerGroupId + "/privileges",
           "{\"codes\":[\"project-view\",\"program-view\",\"execution-view\",\"task-view\",\"board-view\","
               + "\"task-start\",\"task-finish\"]}",
           adminCookie);
     }
     HttpResponse<String> created = send("POST", "/api/v1/accounts",
         "{\"account\":\"" + account + "\",\"password\":\"secret123\",\"realName\":\"" + account
-            + "\",\"groupIds\":[" + viewerGroupId + "]}",
+            + "\",\"roleIds\":[" + viewerGroupId + "]}",
         adminCookie);
     assertTrue(created.statusCode() == 200 || created.statusCode() == 422, created.body());
   }

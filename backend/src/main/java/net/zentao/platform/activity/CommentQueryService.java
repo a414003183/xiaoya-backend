@@ -3,6 +3,7 @@ package net.zentao.platform.activity;
 import java.util.List;
 import java.util.Map;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +21,7 @@ public class CommentQueryService {
 
   public CommentList page(SessionPrincipal principal, String objectType, long objectId, int page, int limit) {
     if (!visibility.isVisible(principal, objectType, objectId)) {
-      throw ApiException.dataForbidden("对象不可见。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "comment.guard.objectInvisible");
     }
     Map<String, Object> result = repository.page(objectType, objectId, null, page, limit);
     @SuppressWarnings("unchecked")

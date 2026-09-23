@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.i18n.MessageResolver;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.web.BatchActionResult;
 import net.zentao.project.api.ProjectApi;
@@ -32,14 +33,18 @@ public class LinkProjectStoriesHandler {
   private final ProjectApi projectApi;
   private final ProjectQueryService projectQueryService;
 
+  private final MessageResolver messages;
+
   public LinkProjectStoriesHandler(ProjectStoryRepository repository,
       ProjectProductRepository projectProductRepository, StoryApi storyApi, ProjectApi projectApi,
-      ProjectQueryService projectQueryService) {
+      ProjectQueryService projectQueryService,
+      MessageResolver messages) {
     this.repository = repository;
     this.projectProductRepository = projectProductRepository;
     this.storyApi = storyApi;
     this.projectApi = projectApi;
     this.projectQueryService = projectQueryService;
+    this.messages = messages;
   }
 
   public record StoryLinkRequest(@Schema(requiredMode = Schema.RequiredMode.REQUIRED) List<Long> storyIds) {}
@@ -67,7 +72,7 @@ public class LinkProjectStoriesHandler {
     for (Long storyId : distinct) {
       StoryView story = stories.get(storyId);
       if (story == null || !allowedProducts.contains(story.productId())) {
-        results.add(BatchActionResult.failed(storyId, "42201:需求不存在或不属于本项目关联产品"));
+        results.add(BatchActionResult.failed(storyId, "42201:" + messages.forRequest("project.link.storyNotInProduct")));
         continue;
       }
       byProduct.computeIfAbsent(story.productId(), productId -> new ArrayList<>()).add(storyId);

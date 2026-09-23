@@ -60,7 +60,9 @@ class SessionApiSmokeTest {
     assertFalse(sessionCookie.contains("Secure"), sessionCookie);
     String token = sessionCookie.split(";", 2)[0];
     String tokenId = token.substring("ZT_SESSION=".length());
-    assertTrue(sessionRowCount(tokenId) == 1, "登录后 session 表应有该行");
+    // T51 SEC-03：库里存的是 token 的 sha256——按明文查必须 0 行，按摘要查才是那条会话
+    assertEquals(0, sessionRowCount(tokenId), "明文 token 不得落库");
+    assertEquals(1, sessionRowCount(SessionTokenHash.of(tokenId)), "登录后 session 表应有该摘要行");
     assertTrue(meAccountRowExists(), "V3 种子应已插入 admin 账号");
 
     // 未登录 → 40101
@@ -81,7 +83,7 @@ class SessionApiSmokeTest {
         delete("/api/v1/session", Map.of("Cookie", token, "X-Requested-With", "fetch"));
     assertEquals(200, logout.statusCode(), logout.body());
     assertTrue(logout.body().contains("\"data\":null"), logout.body());
-    assertEquals(0, sessionRowCount(tokenId), "登出后 session 行应已删除");
+    assertEquals(0, sessionRowCount(SessionTokenHash.of(tokenId)), "登出后 session 行应已删除");
     assertEquals(401, get("/api/v1/me", Map.of("Cookie", token)).statusCode());
 
     // traceId 响应头存在

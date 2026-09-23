@@ -24,7 +24,7 @@ public class RemoveStakeholderHandler {
     projectQueryService.requireVisible(actor, objectType, objectId);
     Stakeholder stakeholder = repository.findActiveById(stakeholderId)
         .filter(row -> objectType.equals(row.objectType()) && row.objectId() == objectId)
-        .orElseThrow(() -> ApiException.notFound("干系人"));
+        .orElseThrow(() -> ApiException.notFound("entity.stakeholder"));
     repository.softDelete(stakeholder.id(), actor.account());
   }
 }

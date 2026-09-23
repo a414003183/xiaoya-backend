@@ -1,6 +1,7 @@
 package net.zentao.project.app;
 
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.project.domain.ProjectRepository;
 import net.zentao.project.domain.ProjectStoryRepository;
@@ -37,20 +38,20 @@ public class DeleteProjectHandler {
     switch (type) {
       case "program" -> {
         if (repository.countActiveChildren(id) > 0) {
-          throw ApiException.guardNotSatisfied("存在未删的子项目集或子项目，不能删除。");
+          throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "project.guard.hasChildren");
         }
       }
       case "project" -> {
         if (repository.countActiveChildren(id) > 0) {
-          throw ApiException.guardNotSatisfied("存在未删的执行，不能删除。");
+          throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "project.guard.hasExecutions");
         }
         if (projectStoryRepository.countByProject(id) > 0) {
-          throw ApiException.guardNotSatisfied("存在未删的关联需求，不能删除。");
+          throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "project.guard.hasStories");
         }
       }
       default -> {
         if (taskApi.hasActiveTasksByExecution(id)) {
-          throw ApiException.guardNotSatisfied("执行下存在未删任务，不能删除。");
+          throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "execution.guard.hasTasks");
         }
       }
     }

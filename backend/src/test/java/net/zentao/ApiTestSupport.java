@@ -84,11 +84,11 @@ public abstract class ApiTestSupport extends H2TestSupport {
   /** 建（或复用）只带指定权限码的测试账号并登录返回 cookie；账号名需全局唯一（同 JVM 共享 H2 库）。 */
   protected String accountWithPrivileges(String adminCookie, String account, String privilegeCodes)
       throws Exception {
-    long groupId = dataId(send("POST", "/api/v1/groups", "{\"name\":\"组-" + account + "\"}", adminCookie));
-    assertEquals(200, send("PUT", "/api/v1/groups/" + groupId + "/privileges",
+    long groupId = dataId(send("POST", "/api/v1/roles", "{\"name\":\"组-" + account + "\"}", adminCookie));
+    assertEquals(200, send("PUT", "/api/v1/roles/" + groupId + "/privileges",
         "{\"codes\":[" + privilegeCodes + "]}", adminCookie).statusCode());
     send("POST", "/api/v1/accounts", "{\"account\":\"" + account + "\",\"password\":\"secret123\",\"realName\":\""
-        + account + "\",\"groupIds\":[" + groupId + "]}", adminCookie);
+        + account + "\",\"roleIds\":[" + groupId + "]}", adminCookie);
     return login(account, "secret123");
   }
 }

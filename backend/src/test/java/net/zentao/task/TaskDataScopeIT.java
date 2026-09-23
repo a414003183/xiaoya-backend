@@ -65,16 +65,16 @@ class TaskDataScopeIT extends MySqlContainerSupport {
 
   private void ensureViewer(String account) throws Exception {
     if (viewerGroupId == 0) {
-      viewerGroupId = dataId(send("POST", "/api/v1/groups",
+      viewerGroupId = dataId(send("POST", "/api/v1/roles",
           "{\"name\":\"IT 任务组 " + System.nanoTime() + "\"}", adminCookie));
-      send("PUT", "/api/v1/groups/" + viewerGroupId + "/privileges",
+      send("PUT", "/api/v1/roles/" + viewerGroupId + "/privileges",
           "{\"codes\":[\"task-view\",\"task-create\",\"task-start\",\"task-finish\",\"task-effort\","
               + "\"execution-view\",\"project-view\"]}",
           adminCookie);
     }
     HttpResponse<String> created = send("POST", "/api/v1/accounts",
         "{\"account\":\"" + account + "\",\"password\":\"secret123\",\"realName\":\"" + account
-            + "\",\"groupIds\":[" + viewerGroupId + "]}",
+            + "\",\"roleIds\":[" + viewerGroupId + "]}",
         adminCookie);
     assertTrue(created.statusCode() == 200 || created.statusCode() == 422, created.body());
   }

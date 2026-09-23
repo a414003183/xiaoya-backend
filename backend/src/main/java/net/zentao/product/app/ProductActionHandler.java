@@ -39,7 +39,7 @@ public class ProductActionHandler {
     engine.fire(new WorkflowTargets.ProductTarget(product, actor.account()), action, comment);
     product.markUpdatedBy(actor.account());
     Product saved = repository.update(product)
-        .orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+        .orElseThrow(() -> ApiException.lockConflict());
     return ProductView.of(saved);
   }
 }

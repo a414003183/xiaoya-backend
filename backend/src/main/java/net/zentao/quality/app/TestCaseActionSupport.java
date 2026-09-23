@@ -2,6 +2,7 @@ package net.zentao.quality.app;
 
 import java.util.function.Consumer;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.workflow.WorkflowEngine;
 import net.zentao.platform.workflow.WorkflowTarget;
@@ -20,9 +21,9 @@ final class TestCaseActionSupport {
 
   static TestCase require(SessionPrincipal actor, TestCaseRepository repository, ProductApi productApi,
       long caseId) {
-    TestCase testCase = repository.findActiveById(caseId).orElseThrow(() -> ApiException.notFound("用例"));
+    TestCase testCase = repository.findActiveById(caseId).orElseThrow(() -> ApiException.notFound("entity.testCase"));
     if (testCase.libraryId() == 0 && !productApi.canAccess(actor, testCase.productId())) {
-      throw ApiException.dataForbidden("无权访问该用例。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "testCase.guard.forbidden");
     }
     return testCase;
   }
@@ -37,7 +38,7 @@ final class TestCaseActionSupport {
   }
 
   static TestCase save(TestCaseRepository repository, TestCase testCase) {
-    return repository.update(testCase).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+    return repository.update(testCase).orElseThrow(() -> ApiException.lockConflict());
   }
 
   record TestCaseTarget(TestCase testCase, String actor) implements WorkflowTarget {

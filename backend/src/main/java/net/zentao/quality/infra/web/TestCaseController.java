@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import net.zentao.platform.activity.ActivityQueryService;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.BatchActionRequest;
@@ -75,6 +77,7 @@ public class TestCaseController {
   @PostMapping("/products/{productId}/test-cases")
   @Operation(operationId = "createTestCase")
   @RequirePrivilege("testcase-create")
+  @Audit(action = "testCase-create", objectType = "testCase")
   public DataEnvelope<TestCaseView> create(@PathVariable long productId,
       @RequestBody CreateTestCaseHandler.TestCaseCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(createHandler.handle(resolver.resolve(request), productId, 0, body));
@@ -83,6 +86,7 @@ public class TestCaseController {
   @PostMapping("/products/{productId}/test-cases/batch")
   @Operation(operationId = "batchCreateTestCases")
   @RequirePrivilege("testcase-create")
+  @Audit(action = "batch-operation", objectType = "testCase")
   public DataEnvelope<BatchCreateResult> batchCreate(@PathVariable long productId,
       @RequestBody TestCaseBatchCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(batchCreateHandler.handle(resolver.resolve(request), productId, 0, body.items()));
@@ -91,6 +95,7 @@ public class TestCaseController {
   @PostMapping("/products/{productId}/test-cases/import-from-library")
   @Operation(operationId = "importTestCasesFromLibrary")
   @RequirePrivilege("testcase-create")
+  @Audit(action = "testCase-import-from-library", objectType = "testCase")
   public DataEnvelope<ImportFromLibraryHandler.TestCaseImportResult> importFromLibrary(
       @PathVariable long productId, @RequestBody ImportFromLibraryHandler.TestCaseImportRequest body,
       HttpServletRequest request) {
@@ -108,6 +113,7 @@ public class TestCaseController {
   @PostMapping("/libraries/{libraryId}/test-cases")
   @Operation(operationId = "createLibraryCase")
   @RequirePrivilege("library-edit")
+  @Audit(action = "testCase-create", objectType = "testCase")
   public DataEnvelope<TestCaseView> createLibraryCase(@PathVariable long libraryId,
       @RequestBody CreateTestCaseHandler.TestCaseCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(createHandler.handle(resolver.resolve(request), 0, libraryId, body));
@@ -123,6 +129,8 @@ public class TestCaseController {
   @PatchMapping("/test-cases/{caseId}")
   @Operation(operationId = "updateTestCase")
   @RequirePrivilege("testcase-edit")
+  @Audit(action = "testCase-update", objectType = "testCase")
+  @AuditDiff(objectType = "testCase")
   public DataEnvelope<TestCaseView> update(@PathVariable long caseId,
       @RequestBody UpdateTestCaseHandler.TestCaseUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(updateHandler.handle(resolver.resolve(request), caseId, body));
@@ -131,14 +139,19 @@ public class TestCaseController {
   @DeleteMapping("/test-cases/{caseId}")
   @Operation(operationId = "deleteTestCase")
   @RequirePrivilege("testcase-delete")
+  @Audit(action = "testCase-delete", objectType = "testCase")
+  @AuditDiff(objectType = "testCase")
   public DataEnvelope<Void> delete(@PathVariable long caseId, HttpServletRequest request) {
     deleteHandler.handle(resolver.resolve(request), caseId);
     return DataEnvelope.empty();
   }
 
+  /** 评审类动作：catalog 登记为 approve + 整快照（前后状态快照进 snapshot 列）。 */
   @PostMapping("/test-cases/{caseId}/review")
   @Operation(operationId = "reviewTestCase")
   @RequirePrivilege("testcase-review")
+  @Audit(action = "testCase-review", objectType = "testCase")
+  @AuditDiff(objectType = "testCase")
   public DataEnvelope<TestCaseView> review(@PathVariable long caseId,
       @RequestBody ReviewTestCaseHandler.TestCaseReviewRequest body, HttpServletRequest request) {
     return DataEnvelope.of(reviewHandler.handle(resolver.resolve(request), caseId, body));
@@ -146,6 +159,7 @@ public class TestCaseController {
 
   @PostMapping("/test-cases/batch")
   @Operation(operationId = "batchOperateTestCases")
+  @Audit(action = "batch-operation", objectType = "testCase")
   public DataEnvelope<BatchActionResult> batch(@RequestBody BatchActionRequest body, HttpServletRequest request) {
     return DataEnvelope.of(batchHandler.handle(resolver.resolve(request), body));
   }

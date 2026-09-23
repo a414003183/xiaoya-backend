@@ -61,10 +61,10 @@ class ProductAclIT extends MySqlContainerSupport {
     if (productGroupId != 0) {
       return productGroupId;
     }
-    HttpResponse<String> group = send("POST", "/api/v1/groups", "{\"name\":\"IT 产品组\"}", adminCookie);
+    HttpResponse<String> group = send("POST", "/api/v1/roles", "{\"name\":\"IT 产品组\"}", adminCookie);
     assertEquals(200, group.statusCode(), group.body());
     productGroupId = json.readTree(group.body()).at("/data/id").asLong();
-    send("PUT", "/api/v1/groups/" + productGroupId + "/privileges",
+    send("PUT", "/api/v1/roles/" + productGroupId + "/privileges",
         "{\"codes\":[\"product-view\",\"product-create\",\"product-edit\",\"product-close\",\"product-activate\"]}",
         adminCookie);
     return productGroupId;
@@ -73,7 +73,7 @@ class ProductAclIT extends MySqlContainerSupport {
   private void ensureAccount(String account) throws Exception {
     HttpResponse<String> created = send("POST", "/api/v1/accounts",
         "{\"account\":\"" + account + "\",\"password\":\"secret123\",\"realName\":\"" + account
-            + "\",\"groupIds\":[" + ensureGroup() + "]}",
+            + "\",\"roleIds\":[" + ensureGroup() + "]}",
         adminCookie);
     assertTrue(created.statusCode() == 200 || created.statusCode() == 422, created.body());
   }

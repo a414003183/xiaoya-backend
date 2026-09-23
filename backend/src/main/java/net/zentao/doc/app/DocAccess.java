@@ -9,6 +9,8 @@ import net.zentao.doc.domain.DocRepository;
 import net.zentao.doc.domain.DocSpace;
 import net.zentao.doc.domain.DocSpaceRepository;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.rbac.PrivilegeChecker;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.ProductApi;
@@ -47,14 +49,14 @@ public class DocAccess {
     return checker.isSuperAdmin(principal.accountId());
   }
 
-  public List<Long> groupsOf(SessionPrincipal principal) {
-    return checker.groupsOf(principal.accountId());
+  public List<Long> roleIdsOf(SessionPrincipal principal) {
+    return checker.roleIdsOf(principal.accountId());
   }
 
   /** 可见库 id 集（doc 卡 §7；mine 库超管也不可见，故超管同样需要逐库判定）。 */
   public List<Long> visibleSpaceIds(SessionPrincipal principal) {
     boolean superAdmin = isSuperAdmin(principal);
-    List<Long> groups = groupsOf(principal);
+    List<Long> groups = roleIdsOf(principal);
     DocAclPolicy.ObjectVisibility products = products(principal);
     DocAclPolicy.ObjectVisibility projects = projects(principal);
     DocAclPolicy.ObjectVisibility executions = executions(principal);
@@ -67,39 +69,50 @@ public class DocAccess {
   }
 
   public boolean canSee(DocSpace space, SessionPrincipal principal) {
-    return DocAclPolicy.isSpaceVisible(space, principal.account(), isSuperAdmin(principal), groupsOf(principal),
+    return DocAclPolicy.isSpaceVisible(space, principal.account(), isSuperAdmin(principal), roleIdsOf(principal),
         products(principal), projects(principal), executions(principal));
   }
 
   public boolean canEdit(Doc doc, SessionPrincipal principal) {
-    return DocAclPolicy.isDocEditable(doc, principal.account(), isSuperAdmin(principal), groupsOf(principal));
+    return DocAclPolicy.isDocEditable(doc, principal.account(), isSuperAdmin(principal), roleIdsOf(principal));
   }
 
   /** 库详情/动作前置：不存在 → 40401；存在但不可见 → 40302。 */
   public DocSpace requireSpace(SessionPrincipal principal, long spaceId) {
-    DocSpace space = spaceRepository.findActiveById(spaceId).orElseThrow(() -> ApiException.notFound("文档库"));
+    DocSpace space = spaceRepository.findActiveById(spaceId).orElseThrow(() -> ApiException.notFound("entity.docSpace"));
     if (!canSee(space, principal)) {
-      throw ApiException.dataForbidden("无权访问该文档库。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "docSpace.guard.forbidden");
     }
     return space;
   }
 
   /** 文档读前置：库不可见或文档 ACL 不可见 → 40401（均按不存在处理，防探测）。 */
   public Doc requireReadableDoc(SessionPrincipal principal, long docId) {
-    Doc doc = docRepository.findActiveById(docId).orElseThrow(() -> ApiException.notFound("文档"));
-    DocSpace space = spaceRepository.findActiveById(doc.docSpaceId()).orElseThrow(() -> ApiException.notFound("文档"));
-    if (!canSee(space, principal)
-        || !DocAclPolicy.isDocReadable(doc, principal.account(), isSuperAdmin(principal), groupsOf(principal))) {
-      throw ApiException.notFound("文档");
+    Doc doc = docRepository.findActiveById(docId).orElseThrow(() -> ApiException.notFound("entity.doc"));
+    if (!readable(doc, principal)) {
+      throw ApiException.notFound("entity.doc");
     }
     return doc;
+  }
+
+  /** 文档是否可读（按 id、不抛）：platform 可见性注册表按 docId 判定用，语义同 {@link #requireReadableDoc}。 */
+  public boolean canRead(SessionPrincipal principal, long docId) {
+    return docRepository.findActiveById(docId).filter(doc -> readable(doc, principal)).isPresent();
+  }
+
+  /** 文档可读判定（纯布尔，不抛）：库不存在同样按不可读处理（与 requireReadableDoc 的 40401 同口径）。 */
+  private boolean readable(Doc doc, SessionPrincipal principal) {
+    return spaceRepository.findActiveById(doc.docSpaceId())
+        .map(space -> canSee(space, principal)
+            && DocAclPolicy.isDocReadable(doc, principal.account(), isSuperAdmin(principal), roleIdsOf(principal)))
+        .orElse(false);
   }
 
   /** 文档写前置：私有文档 readers 命中者写 → 40302。 */
   public Doc requireEditableDoc(SessionPrincipal principal, long docId) {
     Doc doc = requireReadableDoc(principal, docId);
     if (!canEdit(doc, principal)) {
-      throw ApiException.dataForbidden("无权编辑该文档。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "doc.guard.editForbidden");
     }
     return doc;
   }
@@ -118,9 +131,9 @@ public class DocAccess {
     QueryCondition condition = new QueryColumn("acl").eq("open")
         .or(new QueryColumn("created_by").eq(principal.account()));
     for (String value : hitValues(principal)) {
-      String pattern = "%\"" + value + "\"%";
-      condition = condition.or(new QueryColumn("editors").like(pattern))
-          .or(new QueryColumn("readers").like(pattern));
+      String pattern = LikePatterns.jsonElement(value);
+      condition = condition.or(new QueryColumn("editors").likeRaw(pattern))
+          .or(new QueryColumn("readers").likeRaw(pattern));
     }
     return condition;
   }
@@ -129,7 +142,7 @@ public class DocAccess {
   private List<String> hitValues(SessionPrincipal principal) {
     List<String> values = new java.util.ArrayList<>();
     values.add(principal.account());
-    groupsOf(principal).forEach(groupId -> values.add(String.valueOf(groupId)));
+    roleIdsOf(principal).forEach(groupId -> values.add(String.valueOf(groupId)));
     return List.copyOf(values);
   }
 

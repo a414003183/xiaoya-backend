@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.rbac.DataScope;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.project.api.ExecutionApi;
@@ -81,7 +82,7 @@ public class ProjectApiImpl implements ProjectApi, ExecutionApi {
       throw ApiException.notFound(label(type));
     }
     if (!ProjectVisibility.isVisible(project, repository.findAllActive(), viewer(principal))) {
-      throw ApiException.dataForbidden("无权访问该" + label(type) + "。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "project.guard.forbiddenTyped", label(type));
     }
     return ProjectView.of(project);
   }
@@ -114,7 +115,7 @@ public class ProjectApiImpl implements ProjectApi, ExecutionApi {
   public ProjectView requireExecution(SessionPrincipal principal, long executionId) {
     Project execution = require(principal, executionId);
     if (!execution.isExecution()) {
-      throw ApiException.notFound("执行");
+      throw ApiException.notFound("entity.execution");
     }
     return ProjectView.of(execution);
   }
@@ -123,27 +124,27 @@ public class ProjectApiImpl implements ProjectApi, ExecutionApi {
   public ProjectView requireWritable(SessionPrincipal principal, long executionId) {
     Project execution = require(principal, executionId);
     if (!execution.isExecution()) {
-      throw ApiException.notFound("执行");
+      throw ApiException.notFound("entity.execution");
     }
     if ("closed".equals(execution.status())) {
-      throw ApiException.guardNotSatisfied("执行已关闭，其下任务与工时只读。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "execution.guard.closedReadOnly");
     }
     return ProjectView.of(execution);
   }
 
   private Project require(SessionPrincipal principal, long id) {
-    Project project = repository.findActiveById(id).orElseThrow(() -> ApiException.notFound("项目"));
+    Project project = repository.findActiveById(id).orElseThrow(() -> ApiException.notFound("entity.project"));
     if (!ProjectVisibility.isVisible(project, repository.findAllActive(), viewer(principal))) {
-      throw ApiException.dataForbidden("无权访问该项目。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "project.guard.forbidden");
     }
     return project;
   }
 
   private static String label(String type) {
     return switch (type) {
-      case "program" -> "项目集";
-      case "execution" -> "执行";
-      default -> "项目";
+      case "program" -> "entity.program";
+      case "execution" -> "entity.execution";
+      default -> "entity.project";
     };
   }
 

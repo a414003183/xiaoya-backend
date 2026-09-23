@@ -19,27 +19,73 @@ spring:
 
 server:
   port: 8080
+  # T51（SEC-10 部分）：审计与登录日志记的客户端 IP。**默认不采信 X-Forwarded-\***——任何客户端都能自己
+  # 加这个头，直连部署信了就等于让攻击者把 IP 写成别人的（污染审计）。
+  # 反向代理/网关部署时置两个环境变量即启用 Tomcat RemoteIpValve：
+  #   ZENTAO_FORWARDED_IP_HEADER=x-forwarded-for  ZENTAO_FORWARDED_PROTO_HEADER=x-forwarded-proto
+  # 留空 = 不装阀（实测：阀是否生效只取决于这两个属性非空，`server.forward-headers-strategy` 管不了它，
+  # 故这里不设那个装饰性开关）。阀只信来自内网/代理段（internal-proxies 缺省值）的转发头。
+  tomcat:
+    # T60/SEC-09：超限上传（>50MB）被容器拒绝时，Tomcat 必须能吞掉客户端还在发的请求体，
+    # 否则响应写不出去、连接被重置——客户端看到的是网络错误而不是 422「文件太大」（默认只吞 2MB）。
+    # 取值 ≥ max-request-size，让「太大」这个结论真的送得到。
+    max-swallow-size: 55MB
+    remoteip:
+      remote-ip-header: ${ZENTAO_FORWARDED_IP_HEADER:}
+      protocol-header: ${ZENTAO_FORWARDED_PROTO_HEADER:}
 
+# T14：文档按**契约的域**分组（springdoc 缺省按控制器名自动打 tag，会出现 30+ 个 setting-controller 之类的组）。
+# 分域的唯一依据是控制器所在包，故新增域时这里与 contract/openapi.yaml 的 tags 一起加一行。
+# 访问守卫见 SurfaceGuardFilter（/v3/api-docs、/swagger-ui 需 api-doc-view）。
 springdoc:
   api-docs:
     path: /v3/api-docs
+  group-configs:
+    - group: platform
+      display-name: platform · 平台
+      packages-to-scan: net.zentao.platform.web
+    - group: org
+      display-name: org · 组织
+      packages-to-scan: net.zentao.org.infra.web
+    - group: product
+      display-name: product · 产品
+      packages-to-scan: net.zentao.product.infra.web
+    - group: requirement
+      display-name: requirement · 需求
+      packages-to-scan: net.zentao.requirement.infra.web
+    - group: project
+      display-name: project · 项目
+      packages-to-scan: net.zentao.project.infra.web
+    - group: task
+      display-name: task · 任务
+      packages-to-scan: net.zentao.task.infra.web
+    - group: quality
+      display-name: quality · 测试
+      packages-to-scan: net.zentao.quality.infra.web
+    - group: doc
+      display-name: doc · 文档
+      packages-to-scan: net.zentao.doc.infra.web
+    - group: workspace
+      display-name: workspace · 工作台
+      packages-to-scan: net.zentao.workspace.infra.web
 
 # B1 可观测性地基：只放探活面。health 匿名可读（探针），info 及以后新增的端点一律需会话
-# （ActuatorGuardInterceptor）。show-details 恒 never——本应用认证不走 Spring Security，
+# （SurfaceGuardFilter 的规则表）。show-details 恒 never——本应用认证不走 Spring Security，
 # when-authorized 永远判不出「已授权」，写它等于写死 never 却看上去像开了详情。
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        # T75/OPS-10：补 prometheus 指标源（/actuator/prometheus，供 T79 抓取）。口径不变：health 匿名（探针），
+        # info/prometheus 一律先要会话（SurfaceGuardFilter）——指标里有 JVM/请求路径等内部细节，不扩大匿名面。
+        include: health,info,prometheus
   endpoint:
     health:
       show-details: never
 
 logging:
-  # traceId 由 TraceIdFilter 放进 MDC；%X{traceId:-} 让过滤器之外（启动期）的日志不炸成空占位
-  pattern:
-    console: "%d{HH:mm:ss.SSS} %-5level [%X{traceId:-}] %logger{36} - %msg%n"
+  # T75/OPS-11：日志配置已迁至 logback-spring.xml（JSON 结构化 + 滚动保留 + 分包级别），
+  # 有它之后 Boot 的 logging.pattern.* 不再生效，故不再在此重复图案（人读图案随迁）。
 
 zentao:
   admin:
@@ -53,11 +99,29 @@ zentao:
   login:
     rate-limit-window: 60s
     rate-limit-max: 10
+    # T58 SEC-14：同一来源 IP 的失败上限（≤0=关掉该维度）。IP 取 remoteAddr（T51 SEC-10：默认不采信
+    # X-Forwarded-*；反代部署须置 ZENTAO_FORWARDED_IP_HEADER，否则全站算在一个出口 IP 上）。
+    rate-limit-max-per-ip: 100
+    # T58 SEC-13：失败表容量上限（账号与 IP 两份各 10000 键），溢出按 LRU 淘汰——账号喷射不撑爆内存
+    rate-limit-tracked-keys: 10000
+  # T59 SEC-07：敏感端点按账号计窗限流（42901）——一次请求换大量 CPU/IO/存储的四个面；≤0 = 该端点不限
+  ratelimit:
+    window: 60s
+    tracked-keys: 10000
+    change-password-per-window: 10
+    export-per-window: 20
+    search-per-window: 60
+    upload-per-window: 60
   security:
+    # T61/SEC-10：HSTS max-age（秒）。只在 HTTPS 请求上发（含 RemoteIpValve 采信 X-Forwarded-Proto 后），
+    # 纯 HTTP 的 localhost 开发态不发；设 0 = 关闭。
+    hsts-max-age: 31536000
     password:
       # 06 A7-4：新口令下限 8 位；require-mixed=需字母+数字（关闭则只校验长度）
       min-length: 8
       require-mixed: true
+      # T62 SEC-11：新口令不得复用最近 N 个用过的（0 = 关闭该半）；「新=当前」恒拦，不受本开关影响
+      history-count: 5
   file:
     root: data/files
     purge-grace-days: 30
@@ -65,6 +129,11 @@ zentao:
   notification:
     sse:
       heartbeat: 30000
+  log:
+    # T75/OPS-11：net.zentao 及子包的日志级别（root 恒 INFO，见 logback-spring.xml）；
+    # file = JSON 结构化滚动日志路径（相对运行目录，按天 + 50MB 切，保留 14 份 / 1GB 封顶）。
+    level: INFO
+    file: data/logs/zentao.log
   persistence:
     # B1 慢 SQL 告警阈值（SlowSqlInterceptor）；设 0 则每条语句都告警（仅供单测验证接线）
     slow-sql-threshold: 1s

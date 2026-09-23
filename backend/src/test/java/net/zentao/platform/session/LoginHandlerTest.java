@@ -30,7 +30,7 @@ class LoginHandlerTest {
   private final HttpClient http = HttpClient.newHttpClient();
 
   @Test
-  @DisplayName("正确凭据 → 200 + HttpOnly SameSite=Lax cookie，会话落库")
+  @DisplayName("正确凭据 → 200 + HttpOnly SameSite=Lax cookie；会话落库（主键是摘要，明文不落库）")
   void loginSeedsCookieAndSessionRow() throws Exception {
     HttpResponse<String> response = post("/api/v1/session", "{\"account\":\"admin\",\"password\":\"admin123\"}");
     assertEquals(200, response.statusCode(), response.body());
@@ -41,11 +41,20 @@ class LoginHandlerTest {
     assertTrue(cookie.contains("HttpOnly"), cookie);
     assertTrue(cookie.contains("SameSite=Lax"), cookie);
     String token = cookie.split(";", 2)[0].substring("ZT_SESSION=".length());
+    // T51 SEC-03：行主键是 token 的 sha256——摘要查得到该行，明文绝不落库
     try (var connection = dataSource.getConnection();
         var query = connection.prepareStatement("SELECT account_id FROM session WHERE id = ?")) {
+      query.setString(1, SessionTokenHash.of(token));
+      var resultSet = query.executeQuery();
+      Assertions.assertTrue(resultSet.next(), "session 表应存在该摘要行");
+      Assertions.assertTrue(resultSet.getLong(1) > 0, "该行应指向账号");
+    }
+    try (var connection = dataSource.getConnection();
+        var query = connection.prepareStatement("SELECT COUNT(*) FROM session WHERE id = ?")) {
       query.setString(1, token);
       var resultSet = query.executeQuery();
-      Assertions.assertTrue(resultSet.next(), "session 表应存在该会话行");
+      resultSet.next();
+      assertEquals(0, resultSet.getInt(1), "明文 token 不得落库");
     }
   }
 

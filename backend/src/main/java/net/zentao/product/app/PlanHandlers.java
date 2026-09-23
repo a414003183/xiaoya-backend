@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.meta.FieldDefValidator;
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.error.ApiException;
@@ -86,7 +87,7 @@ public class PlanHandlers {
   public PlanView update(SessionPrincipal actor, long planId, PlanUpdateRequest command) {
     Plan plan = require(actor, planId);
     if (command.lockVersion() == null || command.lockVersion() != plan.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     if (command.title() != null) {
       if (command.title().trim().isEmpty()) {
@@ -139,7 +140,7 @@ public class PlanHandlers {
   public void delete(SessionPrincipal actor, long planId) {
     require(actor, planId);
     if (storyApi.hasActiveStoriesByPlan(planId)) {
-      throw ApiException.guardNotSatisfied("存在未删除的需求关联本计划，不能删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "plan.guard.hasStories");
     }
     repository.softDelete(planId);
     repository.detachChildren(planId);
@@ -182,15 +183,16 @@ public class PlanHandlers {
   }
 
   Plan require(SessionPrincipal actor, long planId) {
-    Plan plan = repository.findActiveById(planId).orElseThrow(() -> ApiException.notFound("计划"));
+    Plan plan = repository.findActiveById(planId).orElseThrow(() -> ApiException.notFound("entity.plan"));
     ProductGuard.requireVisible(productRepository, productApi, actor, plan.productId());
     return plan;
   }
 
   Plan save(Plan plan) {
-    return repository.update(plan).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+    return repository.update(plan).orElseThrow(() -> ApiException.lockConflict());
   }
 
+  /** 跨字段规则，不注解化。 */
   private static void requireDateRange(LocalDate begin, LocalDate end) {
     if (begin != null && end != null && end.isBefore(begin)) {
       throw ApiException.validation(Map.of("endDate", "invalidRange"));

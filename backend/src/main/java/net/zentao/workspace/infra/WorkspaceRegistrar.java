@@ -1,7 +1,12 @@
 package net.zentao.workspace.infra;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import net.zentao.platform.audit.AuditCatalog;
+import net.zentao.platform.audit.AuditCategory;
+import net.zentao.platform.audit.AuditLevel;
+import net.zentao.platform.audit.AuditSnapshotRegistry;
 import net.zentao.platform.meta.DictProvider;
 import net.zentao.platform.meta.DictRegistry;
 import net.zentao.platform.meta.MetaRegistry;
@@ -11,6 +16,7 @@ import net.zentao.platform.search.SearchRegistry;
 import net.zentao.platform.search.SearchScope;
 import net.zentao.platform.workflow.WorkflowRegistry;
 import net.zentao.workspace.app.TodoQueryService;
+import net.zentao.workspace.domain.TodoRepository;
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -23,7 +29,8 @@ public class WorkspaceRegistrar {
 
   public WorkspaceRegistrar(MetaRegistry metaRegistry, PrivilegeCatalog privilegeCatalog,
       WorkflowRegistry workflowRegistry, SearchRegistry searchRegistry, DictRegistry dictRegistry,
-      TodoQueryService todoQueryService) {
+      TodoQueryService todoQueryService, TodoRepository todoRepository, AuditCatalog auditCatalog,
+      AuditSnapshotRegistry auditSnapshots) {
     privilegeCatalog.register("workspace", List.of(
         "todo-view", "todo-create", "todo-edit", "todo-delete", "todo-start", "todo-finish", "todo-activate",
         "todo-close", "todo-assign", "my-view", "weekly-report-view"));
@@ -111,5 +118,38 @@ public class WorkspaceRegistrar {
 
     searchRegistry.register(new SearchScope("todo", List.of("title"),
         (q, limit, principal) -> todoQueryService.search(q, limit, principal)));
+
+    // ── 审计分级（T10 / VISION 事项 4 第 4 行「业务增删改 → 对象级 + 关键字段 diff」）──
+    // keyFields 只列审计关心的字段（标题/状态/负责人/优先级/起止时间/归属 id），与下面 provider 的 Map 键同名
+    auditCatalog.register("todo-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("todo-update", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("title", "type", "objectId", "date", "beginTime", "endTime", "priority", "isPrivate"), false);
+    auditCatalog.register("todo-delete", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("title", "status", "assignee"), false);
+    auditCatalog.register("todo-start", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("todo-finish", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("todo-activate", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("todo-close", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("todo-assign", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("assignee"), false);
+
+    // 快照 provider：**每次返回新 Map**（框架留着 before 再取 after 比对，同一个可变 Map 会让 diff 恒为空）；
+    // 用 LinkedHashMap 装（Map.of 不收 null，而 assignee/beginTime 这类字段可以为空）
+    auditSnapshots.register("todo", todoId -> todoRepository.findActiveById(todoId)
+        .map(todo -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("title", todo.title());
+          snapshot.put("type", todo.type());
+          snapshot.put("objectId", todo.objectId());
+          snapshot.put("date", todo.date());
+          snapshot.put("beginTime", todo.beginTime());
+          snapshot.put("endTime", todo.endTime());
+          snapshot.put("priority", todo.priority());
+          snapshot.put("status", todo.status());
+          snapshot.put("isPrivate", todo.isPrivate());
+          snapshot.put("assignee", todo.assignee());
+          // 描述是长正文，不进快照：审计要能定位「改了什么」，不是留全文
+          return snapshot;
+        })
+        .orElse(null));
   }
 }

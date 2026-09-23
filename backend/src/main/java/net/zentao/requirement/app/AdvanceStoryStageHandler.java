@@ -24,7 +24,7 @@ public class AdvanceStoryStageHandler {
   public void advance(long storyId, StoryApi.TaskProgress progress) {
     repository.findActiveById(storyId).ifPresent(story -> {
       story.advanceStage(progress.anyDoing(), progress.allDone());
-      repository.update(story).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+      repository.update(story).orElseThrow(() -> ApiException.lockConflict());
     });
   }
 }

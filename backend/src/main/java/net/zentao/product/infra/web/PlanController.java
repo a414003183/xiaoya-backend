@@ -3,6 +3,8 @@ package net.zentao.product.infra.web;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import net.zentao.platform.activity.ActivityQueryService;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.CommentRequest;
@@ -54,6 +56,7 @@ public class PlanController {
   @PostMapping("/products/{productId}/plans")
   @Operation(operationId = "createPlan")
   @RequirePrivilege("plan-create")
+  @Audit(action = "plan-create", objectType = "plan")
   public DataEnvelope<PlanView> create(@PathVariable long productId,
       @RequestBody PlanHandlers.PlanCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.create(resolver.resolve(request), productId, body));
@@ -69,6 +72,8 @@ public class PlanController {
   @PatchMapping("/plans/{planId}")
   @Operation(operationId = "updatePlan")
   @RequirePrivilege("plan-edit")
+  @Audit(action = "plan-update", objectType = "plan")
+  @AuditDiff(objectType = "plan")
   public DataEnvelope<PlanView> update(@PathVariable long planId,
       @RequestBody PlanHandlers.PlanUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.update(resolver.resolve(request), planId, body));
@@ -77,6 +82,8 @@ public class PlanController {
   @PostMapping("/plans/{planId}/start")
   @Operation(operationId = "startPlan")
   @RequirePrivilege("plan-start")
+  @Audit(action = "plan-start", objectType = "plan")
+  @AuditDiff(objectType = "plan")
   public DataEnvelope<PlanView> start(@PathVariable long planId, HttpServletRequest request) {
     return DataEnvelope.of(handlers.start(resolver.resolve(request), planId));
   }
@@ -84,6 +91,8 @@ public class PlanController {
   @PostMapping("/plans/{planId}/finish")
   @Operation(operationId = "finishPlan")
   @RequirePrivilege("plan-finish")
+  @Audit(action = "plan-finish", objectType = "plan")
+  @AuditDiff(objectType = "plan")
   public DataEnvelope<PlanView> finish(@PathVariable long planId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.finish(resolver.resolve(request), planId, comment(body)));
@@ -92,6 +101,8 @@ public class PlanController {
   @PostMapping("/plans/{planId}/close")
   @Operation(operationId = "closePlan")
   @RequirePrivilege("plan-close")
+  @Audit(action = "plan-close", objectType = "plan")
+  @AuditDiff(objectType = "plan")
   public DataEnvelope<PlanView> close(@PathVariable long planId,
       @RequestBody PlanHandlers.PlanCloseRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.close(resolver.resolve(request), planId, body));
@@ -100,6 +111,8 @@ public class PlanController {
   @DeleteMapping("/plans/{planId}")
   @Operation(operationId = "deletePlan")
   @RequirePrivilege("plan-delete")
+  @Audit(action = "plan-delete", objectType = "plan")
+  @AuditDiff(objectType = "plan")
   public DataEnvelope<Void> delete(@PathVariable long planId, HttpServletRequest request) {
     handlers.delete(resolver.resolve(request), planId);
     return DataEnvelope.empty();
@@ -108,6 +121,8 @@ public class PlanController {
   @PostMapping("/plans/{planId}/activate")
   @Operation(operationId = "activatePlan")
   @RequirePrivilege("plan-activate")
+  @Audit(action = "plan-activate", objectType = "plan")
+  @AuditDiff(objectType = "plan")
   public DataEnvelope<PlanView> activate(@PathVariable long planId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.activate(resolver.resolve(request), planId, comment(body)));
@@ -130,6 +145,7 @@ public class PlanController {
   @PostMapping("/plans/{planId}/link")
   @Operation(operationId = "linkPlan")
   @RequirePrivilege("plan-link")
+  @Audit(action = "plan-link", objectType = "plan")
   public DataEnvelope<PlanView> link(@PathVariable long planId, @RequestBody LinkRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(linkHandler.link(resolver.resolve(request), planId, body));
@@ -138,6 +154,7 @@ public class PlanController {
   @PostMapping("/plans/{planId}/unlink")
   @Operation(operationId = "unlinkPlan")
   @RequirePrivilege("plan-link")
+  @Audit(action = "plan-unlink", objectType = "plan")
   public DataEnvelope<PlanView> unlink(@PathVariable long planId, @RequestBody LinkRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(linkHandler.unlink(resolver.resolve(request), planId, body));

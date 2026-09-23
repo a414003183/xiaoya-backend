@@ -7,6 +7,7 @@ import com.mybatisflex.core.row.Row;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.quality.domain.Report;
 import net.zentao.quality.domain.ReportRepository;
 import org.springframework.stereotype.Component;
@@ -58,7 +59,7 @@ public class ReportRepositoryImpl implements ReportRepository {
 
   @Override
   public void softDelete(long id, String actor, Instant at) {
-    Db.updateByCondition("test_report", Row.of("deleted_at", at).set("updated_by", actor),
+    SoftDeletes.apply("test_report", Row.of("deleted_at", at).set("updated_by", actor),
         new QueryColumn("id").eq(id).and(DELETED_AT.isNull()));
   }
 

@@ -10,6 +10,7 @@ import net.zentao.platform.error.ApiException;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.BuildView;
 import net.zentao.product.api.ProductApi;
@@ -98,8 +99,7 @@ public class ReleaseBuildQueryService {
     List<ReleaseView> items = releaseRepository.queryPage(query, filters.offset(), filters.limit()).stream()
         .map(ReleaseView::of)
         .toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, RELEASE_COLUMNS::get,
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), RELEASE_COLUMNS::get,
         value -> java.util.Optional.empty(), injected);
     return new ReleaseList(items, releaseRepository.countByQuery(countQuery));
   }
@@ -117,8 +117,7 @@ public class ReleaseBuildQueryService {
     List<BuildView> items = buildRepository.queryPage(query, filters.offset(), filters.limit()).stream()
         .map(BuildView::of)
         .toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, BUILD_COLUMNS::get,
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), BUILD_COLUMNS::get,
         value -> java.util.Optional.empty(), injected);
     return new BuildList(items, buildRepository.countByQuery(countQuery));
   }
@@ -150,18 +149,18 @@ public class ReleaseBuildQueryService {
   }
 
   Release requireRelease(SessionPrincipal principal, long releaseId) {
-    Release release = releaseRepository.findActiveById(releaseId).orElseThrow(() -> ApiException.notFound("发布"));
+    Release release = releaseRepository.findActiveById(releaseId).orElseThrow(() -> ApiException.notFound("entity.release"));
     ProductGuard.requireVisible(productRepository, productApi, principal, release.productId());
     return release;
   }
 
   Build requireBuild(SessionPrincipal principal, long buildId) {
-    Build build = buildRepository.findActiveById(buildId).orElseThrow(() -> ApiException.notFound("构建"));
+    Build build = buildRepository.findActiveById(buildId).orElseThrow(() -> ApiException.notFound("entity.build"));
     ProductGuard.requireVisible(productRepository, productApi, principal, build.productId());
     return build;
   }
 
   private static QueryCondition keyword(String q, String column) {
-    return q == null || q.isBlank() ? null : new QueryColumn(column).like("%" + q + "%");
+    return q == null || q.isBlank() ? null : new QueryColumn(column).likeRaw(LikePatterns.contains(q));
   }
 }

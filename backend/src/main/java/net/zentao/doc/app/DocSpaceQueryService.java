@@ -13,6 +13,7 @@ import net.zentao.doc.domain.DocSpaceRepository;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.session.SessionPrincipal;
 import org.springframework.stereotype.Component;
 
@@ -60,8 +61,7 @@ public class DocSpaceQueryService {
     }
     QueryWrapper query = FilterPredicate.compile(filters, COLUMNS::get, value -> java.util.Optional.empty(), injected);
     List<DocSpace> spaces = repository.queryPage(query, filters.offset(), filters.limit());
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, COLUMNS::get,
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), COLUMNS::get,
         value -> java.util.Optional.empty(), injected);
     return new DocSpaceList(withCounts(spaces), repository.countByQuery(countQuery));
   }
@@ -86,7 +86,7 @@ public class DocSpaceQueryService {
     if (q == null || q.isBlank()) {
       return null;
     }
-    String like = "%" + q + "%";
-    return new QueryColumn("name").like(like).or(new QueryColumn("description").like(like));
+    String like = LikePatterns.contains(q);
+    return new QueryColumn("name").likeRaw(like).or(new QueryColumn("description").likeRaw(like));
   }
 }

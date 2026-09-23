@@ -14,7 +14,7 @@ final class TaskGuard {
   /** 任务不存在 → 40401；所属执行不可见 → 40302。 */
   static Task requireVisible(TaskRepository repository, ExecutionApi executionApi, SessionPrincipal actor,
       long taskId) {
-    Task task = repository.findActiveById(taskId).orElseThrow(() -> ApiException.notFound("任务"));
+    Task task = repository.findActiveById(taskId).orElseThrow(() -> ApiException.notFound("entity.task"));
     executionApi.requireExecution(actor, task.executionId());
     return task;
   }
@@ -28,7 +28,7 @@ final class TaskGuard {
   /** 写路径：在可见性之上加「执行已关闭 → 42203」只读闸门（旧 canModify 语义）。 */
   static Task requireWritable(TaskRepository repository, ExecutionApi executionApi, SessionPrincipal actor,
       long taskId) {
-    Task task = repository.findActiveById(taskId).orElseThrow(() -> ApiException.notFound("任务"));
+    Task task = repository.findActiveById(taskId).orElseThrow(() -> ApiException.notFound("entity.task"));
     executionApi.requireWritable(actor, task.executionId());
     return task;
   }

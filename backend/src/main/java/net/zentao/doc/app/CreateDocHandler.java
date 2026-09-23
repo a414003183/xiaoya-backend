@@ -109,7 +109,7 @@ public class CreateDocHandler {
       doc.publishedAs(1, title);
       doc.markUpdatedBy(actor.account());
       Doc published = repository.update(doc)
-          .orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+          .orElseThrow(() -> ApiException.lockConflict());
       // 直接发布的通知与 publish 动作同型（platform：<objectType>-<action>）
       notificationRecorder.record(published.notifyAccounts(), "doc-publish", "doc", published.id(), activityId,
           title, null, actor.account());

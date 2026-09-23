@@ -7,7 +7,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.UUID;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.AccountStatus;
 import net.zentao.platform.session.AccountView;
 import net.zentao.platform.session.Gender;
@@ -24,31 +26,45 @@ public class LoginAccountGatewayImpl implements LoginAccountGateway {
   private static final String TABLE = "account";
   private static final QueryColumn ACCOUNT = new QueryColumn("account");
 
-  private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+  private final BCryptPasswordEncoder passwordEncoder;
+
+  /**
+   * 未知账号的替身哈希（T58 SEC-12）：口令校验一律先跑满一次 BCrypt——「账号不存在」不再表现为一次快失败
+   * （旧路径直接 401 省掉的那几十毫秒，正是可测的账号枚举计时差）。启动时现算一条随机口令的哈希，
+   * 强度与真实口令同源（同一 bean，T62 起单实例），避免把魔法哈希字面量写进源码。
+   */
+  private final String absentAccountHash;
+
   private final net.zentao.org.app.PasswordActionHandler passwordActionHandler;
   private final net.zentao.org.domain.AccountRepository accountRepository;
 
   public LoginAccountGatewayImpl(net.zentao.org.app.PasswordActionHandler passwordActionHandler,
-      net.zentao.org.domain.AccountRepository accountRepository) {
+      net.zentao.org.domain.AccountRepository accountRepository, BCryptPasswordEncoder passwordEncoder) {
     this.passwordActionHandler = passwordActionHandler;
     this.accountRepository = accountRepository;
+    this.passwordEncoder = passwordEncoder;
+    this.absentAccountHash = passwordEncoder.encode(UUID.randomUUID().toString());
   }
 
   @Override
   public AccountView verifyLogin(String account, String rawPassword) {
     Row row = Db.selectOneByCondition(TABLE, ACCOUNT.eq(account).and(new QueryColumn("deleted_at").isNull()));
+    // T58 SEC-12：先付 BCrypt（未知账号用替身哈希），再回答账号在不在——顺序一旦倒过来，
+    // 「快失败」和下面「锁定文案」两处各自都是账号枚举预言机。
+    boolean passwordMatches = passwordEncoder.matches(
+        rawPassword, row == null ? absentAccountHash : row.getString("password"));
     if (row == null) {
-      throw ApiException.unauthenticated("账号或密码错误。");
+      throw ApiException.keyed(ErrorCode.UNAUTHENTICATED, "account.login.invalid");
     }
     var domain = accountRepository.findByAccount(account).orElseThrow();
-    // 锁定窗口内直接拒绝（超时自动解除，不清列——org 卡 §4）
-    passwordActionHandler.requireNotLocked(domain);
-    if (!passwordEncoder.matches(rawPassword, row.getString("password"))) {
+    if (!passwordMatches) {
       passwordActionHandler.registerFailure(domain);
-      throw ApiException.unauthenticated("账号或密码错误。");
+      throw ApiException.keyed(ErrorCode.UNAUTHENTICATED, "account.login.invalid");
     }
+    // 口令正确才回答锁定/停用（超时自动解除，不清列——org 卡 §4）：不对着口令错的人泄露账号状态
+    passwordActionHandler.requireNotLocked(domain);
     if (!"active".equals(row.getString("status"))) {
-      throw ApiException.unauthenticated("账号已停用。");
+      throw ApiException.keyed(ErrorCode.UNAUTHENTICATED, "account.login.disabled");
     }
     passwordActionHandler.registerSuccess(domain);
     return toView(row);
@@ -62,15 +78,14 @@ public class LoginAccountGatewayImpl implements LoginAccountGateway {
 
   private AccountView toView(Row row) {
     long id = row.getLong("id");
-    List<Long> groupIds = Db.selectListByCondition("user_group", new QueryColumn("account_id").eq(id)).stream()
-        .map(member -> member.getLong("group_id"))
+    List<Long> roleIds = Db.selectListByCondition("user_role", new QueryColumn("account_id").eq(id)).stream()
+        .map(member -> member.getLong("role_id"))
         .toList();
     return new AccountView(
         id,
         row.getString("account"),
         row.getString("real_name"),
         row.getString("nickname"),
-        row.getString("role"),
         row.getLong("department_id"),
         row.getString("email"),
         row.getString("mobile"),
@@ -81,7 +96,7 @@ public class LoginAccountGatewayImpl implements LoginAccountGateway {
         row.getLong("avatar_file_id"),
         enumOrNull(AccountStatus.class, row.getString("status")),
         row.getInt("must_change_password") == 1,
-        groupIds,
+        roleIds,
         row.getInt("fails"),
         instantOrNull(row, "locked_at"),
         instantOrNull(row, "last_active_at"),

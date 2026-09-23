@@ -7,6 +7,7 @@ import com.mybatisflex.core.row.Row;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.product.domain.Build;
 import net.zentao.product.domain.BuildRepository;
 import org.springframework.stereotype.Component;
@@ -67,7 +68,7 @@ public class BuildRepositoryImpl implements BuildRepository {
     if (build.isEmpty()) {
       return Optional.empty();
     }
-    Db.updateByCondition("build", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
+    SoftDeletes.apply("build", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
     return build;
   }
 

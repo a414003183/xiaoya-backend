@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
+import net.zentao.platform.i18n.MessageResolver;
 import net.zentao.platform.rbac.PrivilegeChecker;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.web.BatchActionRequest;
@@ -26,10 +28,12 @@ public class BatchBugActionHandler {
   private final AssignBugHandler assignHandler;
   private final UpdateBugHandler updateHandler;
   private final PrivilegeChecker checker;
+  private final MessageResolver messages;
 
   public BatchBugActionHandler(ConfirmBugHandler confirmHandler, ResolveBugHandler resolveHandler,
       ActivateBugHandler activateHandler, CloseBugHandler closeHandler, AssignBugHandler assignHandler,
-      UpdateBugHandler updateHandler, PrivilegeChecker checker) {
+      UpdateBugHandler updateHandler, PrivilegeChecker checker,
+      MessageResolver messages) {
     this.confirmHandler = confirmHandler;
     this.resolveHandler = resolveHandler;
     this.activateHandler = activateHandler;
@@ -37,6 +41,7 @@ public class BatchBugActionHandler {
     this.assignHandler = assignHandler;
     this.updateHandler = updateHandler;
     this.checker = checker;
+    this.messages = messages;
   }
 
   public BatchActionResult handle(SessionPrincipal actor, BatchActionRequest command) {
@@ -54,10 +59,10 @@ public class BatchBugActionHandler {
       default -> null;
     };
     if (code == null) {
-      throw ApiException.badRequest("不支持的批量动作：" + action);
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "batch.action.unsupported", action);
     }
     if (!checker.hasPrivilege(actor, code)) {
-      throw ApiException.forbidden("无权限：" + code);
+      throw ApiException.keyed(ErrorCode.FORBIDDEN, "error.privilege.missing", code);
     }
     Map<String, Object> params = command.params() == null ? Map.of() : command.params();
     // edit 逐行自带 id + lockVersion（A-03），其余动作统一字段值、循环对象取 command.ids()
@@ -79,11 +84,11 @@ public class BatchBugActionHandler {
               new CommentRequest(text(params, "comment")));
           case "assign" -> assignHandler.handle(actor, id,
               new AssignBugHandler.BugAssignRequest(text(params, "assignee"), text(params, "comment")));
-          default -> throw ApiException.badRequest("不支持的批量动作：" + action);
+          default -> throw ApiException.keyed(ErrorCode.BAD_REQUEST, "batch.action.unsupported", action);
         }
         results.add(BatchActionResult.ok(id));
       } catch (ApiException e) {
-        results.add(BatchActionResult.failed(id, e.errorCode().code() + ":" + e.getMessage()));
+        results.add(BatchActionResult.failed(id, e.errorCode().code() + ":" + messages.forRequest(e)));
       }
     }
     return new BatchActionResult(results);
@@ -96,15 +101,16 @@ public class BatchBugActionHandler {
       Long id = longNumber(row, "id");
       try {
         if (id == null) {
-          throw ApiException.badRequest("rows[].id required");
+          throw ApiException.keyed(ErrorCode.BAD_REQUEST, "error.param.missing");
         }
         if (row.get("lockVersion") == null) {
-          throw ApiException.lockConflict("lockVersion required");
+          // 缺 lockVersion 报 40901 是既定口径（错误码冻结；缺参报锁冲突的怪味归 T66 统一时再议）
+          throw ApiException.keyed(ErrorCode.LOCK_CONFLICT, "error.param.missing");
         }
         updateHandler.handle(actor, id, toUpdate(row));
         results.add(BatchActionResult.ok(id));
       } catch (ApiException e) {
-        results.add(BatchActionResult.failed(id == null ? 0 : id, e.errorCode().code() + ":" + e.getMessage()));
+        results.add(BatchActionResult.failed(id == null ? 0 : id, e.errorCode().code() + ":" + messages.forRequest(e)));
       }
     }
     return new BatchActionResult(results);
@@ -114,12 +120,12 @@ public class BatchBugActionHandler {
   static List<Map<String, Object>> rowsOf(Map<String, Object> params) {
     Object raw = params.get("rows");
     if (!(raw instanceof List<?> list)) {
-      throw ApiException.badRequest("action=edit 需要 params.rows=[{id, lockVersion, …}]。");
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "bug.batch.editRowsRequired");
     }
     List<Map<String, Object>> rows = new ArrayList<>();
     for (Object item : list) {
       if (!(item instanceof Map<?, ?> map)) {
-        throw ApiException.badRequest("rows[] 须为对象。");
+        throw ApiException.keyed(ErrorCode.BAD_REQUEST, "bug.batch.rowObjectRequired");
       }
       rows.add((Map<String, Object>) map);
     }

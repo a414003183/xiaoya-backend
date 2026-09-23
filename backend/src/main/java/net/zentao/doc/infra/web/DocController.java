@@ -17,6 +17,8 @@ import net.zentao.doc.app.PublishDocHandler;
 import net.zentao.doc.app.SaveDocDraftHandler;
 import net.zentao.doc.app.UpdateDocHandler;
 import net.zentao.platform.activity.ActivityQueryService;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.session.SessionResolver;
@@ -24,6 +26,7 @@ import net.zentao.platform.web.BatchActionRequest;
 import net.zentao.platform.web.BatchActionResult;
 import net.zentao.platform.web.CommentRequest;
 import net.zentao.platform.web.DataEnvelope;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -80,6 +83,7 @@ public class DocController {
   @PostMapping("/doc-spaces/{docSpaceId}/docs")
   @Operation(operationId = "createDoc")
   @RequirePrivilege("doc-create")
+  @Audit(action = "doc-create", objectType = "doc")
   public DataEnvelope<DocView> create(@PathVariable long docSpaceId,
       @RequestBody CreateDocHandler.DocCreateRequest body, HttpServletRequest request) {
     SessionPrincipal principal = resolver.resolve(request);
@@ -95,6 +99,7 @@ public class DocController {
 
   @PostMapping("/docs/batch")
   @Operation(operationId = "batchDocs")
+  @Audit(action = "batch-operation", objectType = "doc")
   public DataEnvelope<BatchActionResult> batch(@RequestBody BatchActionRequest body, HttpServletRequest request) {
     return DataEnvelope.of(batchHandler.handle(resolver.resolve(request), body));
   }
@@ -109,6 +114,8 @@ public class DocController {
   @PatchMapping("/docs/{docId}")
   @Operation(operationId = "updateDoc")
   @RequirePrivilege("doc-edit")
+  @Audit(action = "doc-update", objectType = "doc")
+  @AuditDiff(objectType = "doc")
   public DataEnvelope<DocView> update(@PathVariable long docId,
       @RequestBody UpdateDocHandler.DocUpdateRequest body, HttpServletRequest request) {
     SessionPrincipal principal = resolver.resolve(request);
@@ -118,6 +125,8 @@ public class DocController {
   @PostMapping("/docs/{docId}/save-draft")
   @Operation(operationId = "saveDocDraft")
   @RequirePrivilege("doc-edit")
+  @Audit(action = "doc-save-draft", objectType = "doc")
+  @AuditDiff(objectType = "doc")
   public DataEnvelope<DocView> saveDraft(@PathVariable long docId,
       @RequestBody SaveDocDraftHandler.DocSaveDraftRequest body, HttpServletRequest request) {
     SessionPrincipal principal = resolver.resolve(request);
@@ -127,6 +136,8 @@ public class DocController {
   @PostMapping("/docs/{docId}/publish")
   @Operation(operationId = "publishDoc")
   @RequirePrivilege("doc-edit")
+  @Audit(action = "doc-publish", objectType = "doc")
+  @AuditDiff(objectType = "doc")
   public DataEnvelope<DocView> publish(@PathVariable long docId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     SessionPrincipal principal = resolver.resolve(request);
@@ -137,18 +148,22 @@ public class DocController {
   @PostMapping("/docs/{docId}/move")
   @Operation(operationId = "moveDoc")
   @RequirePrivilege("doc-edit")
+  @Audit(action = "doc-move", objectType = "doc")
+  @AuditDiff(objectType = "doc")
   public DataEnvelope<DocView> move(@PathVariable long docId, @RequestBody MoveDocHandler.DocMoveRequest body,
       HttpServletRequest request) {
     SessionPrincipal principal = resolver.resolve(request);
     return DataEnvelope.of(queryService.viewOf(moveHandler.handle(principal, docId, body), principal));
   }
 
-  @PostMapping("/docs/{docId}/delete")
+  @DeleteMapping("/docs/{docId}")
   @Operation(operationId = "deleteDoc")
   @RequirePrivilege("doc-delete")
+  @Audit(action = "doc-delete", objectType = "doc")
+  @AuditDiff(objectType = "doc")
   public DataEnvelope<Void> delete(@PathVariable long docId,
-      @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
-    deleteHandler.handle(resolver.resolve(request), docId, body == null ? null : body.comment());
+      @RequestParam(required = false) String comment, HttpServletRequest request) {
+    deleteHandler.handle(resolver.resolve(request), docId, comment);
     return DataEnvelope.empty();
   }
 

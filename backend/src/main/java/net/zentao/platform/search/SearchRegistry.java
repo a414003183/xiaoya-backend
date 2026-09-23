@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import org.springframework.stereotype.Component;
 
 /**
@@ -30,7 +31,7 @@ public class SearchRegistry {
   /** 白名单外 → 40001；白名单内未注册 → 空集（P1 语义）。 */
   public SearchScope requireScope(String scope) {
     if (!KNOWN_SCOPES.contains(scope)) {
-      throw ApiException.badRequest("未注册的搜索 scope：" + scope);
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "search.scope.unregistered", scope);
     }
     return scopes.get(scope);
   }

@@ -2,6 +2,7 @@ package net.zentao.task.app;
 
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.rbac.DataScope;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.project.api.ExecutionApi;
@@ -39,10 +40,10 @@ public class DeleteEffortHandler {
 
   @Transactional
   public void handle(SessionPrincipal actor, long effortId) {
-    Effort effort = effortRepository.findActiveById(effortId).orElseThrow(() -> ApiException.notFound("工时"));
+    Effort effort = effortRepository.findActiveById(effortId).orElseThrow(() -> ApiException.notFound("entity.effort"));
     Task task = TaskGuard.requireReadable(taskRepository, executionApi, actor, effort.taskId());
     if (!dataScope.isSuperAdmin(actor) && !actor.account().equals(effort.account())) {
-      throw ApiException.forbidden("只能删除本人登记的工时。");
+      throw ApiException.keyed(ErrorCode.FORBIDDEN, "effort.guard.deleteOwnOnly");
     }
     effortRepository.softDelete(effortId);
     recalculator.recalculate(task, actor);

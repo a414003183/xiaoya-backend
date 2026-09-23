@@ -5,7 +5,10 @@ import com.mybatisflex.annotation.KeyType;
 import com.mybatisflex.annotation.Table;
 import java.time.Instant;
 
-/** session 表 PO（platform 卡 §3.1）。主键 = cookie 值（64 位 hex），无自增。 */
+/**
+ * session 表 PO（platform 卡 §3.1；T51 SEC-03）。主键 = **cookie token 的 sha256**（64 位 hex），无自增：
+ * 凭据本体不落库，换算只发生在写入口 {@code SessionRepository#insert(po, token)}。
+ */
 @Table("session")
 public class SessionPO {
 

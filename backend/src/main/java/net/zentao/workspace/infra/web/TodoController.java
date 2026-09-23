@@ -3,6 +3,8 @@ package net.zentao.workspace.infra.web;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import net.zentao.platform.activity.ActivityQueryService;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.CommentRequest;
@@ -60,6 +62,7 @@ public class TodoController {
   @PostMapping("/todos")
   @Operation(operationId = "createTodo")
   @RequirePrivilege("todo-create")
+  @Audit(action = "todo-create", objectType = "todo")
   public DataEnvelope<TodoView> create(@RequestBody CreateTodoHandler.TodoCreateRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(createHandler.handle(resolver.resolve(request), body));
@@ -67,6 +70,7 @@ public class TodoController {
 
   @PostMapping("/todos/batch")
   @Operation(operationId = "batchTodos")
+  @Audit(action = "batch-operation", objectType = "todo")
   public DataEnvelope<TodoBatchResult> batch(@RequestBody BatchTodoHandler.TodoBatchRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(batchHandler.handle(resolver.resolve(request), body));
@@ -82,6 +86,8 @@ public class TodoController {
   @PatchMapping("/todos/{todoId}")
   @Operation(operationId = "updateTodo")
   @RequirePrivilege("todo-edit")
+  @Audit(action = "todo-update", objectType = "todo")
+  @AuditDiff(objectType = "todo")
   public DataEnvelope<TodoView> update(@PathVariable long todoId,
       @RequestBody UpdateTodoHandler.TodoUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(updateHandler.handle(resolver.resolve(request), todoId, body));
@@ -90,6 +96,8 @@ public class TodoController {
   @DeleteMapping("/todos/{todoId}")
   @Operation(operationId = "deleteTodo")
   @RequirePrivilege("todo-delete")
+  @Audit(action = "todo-delete", objectType = "todo")
+  @AuditDiff(objectType = "todo")
   public DataEnvelope<Void> delete(@PathVariable long todoId, HttpServletRequest request) {
     actionHandler.delete(resolver.resolve(request), todoId);
     return DataEnvelope.empty();
@@ -109,6 +117,8 @@ public class TodoController {
   @PostMapping("/todos/{todoId}/start")
   @Operation(operationId = "startTodo")
   @RequirePrivilege("todo-start")
+  @Audit(action = "todo-start", objectType = "todo")
+  @AuditDiff(objectType = "todo")
   public DataEnvelope<TodoView> start(@PathVariable long todoId, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.start(resolver.resolve(request), todoId));
   }
@@ -116,6 +126,8 @@ public class TodoController {
   @PostMapping("/todos/{todoId}/finish")
   @Operation(operationId = "finishTodo")
   @RequirePrivilege("todo-finish")
+  @Audit(action = "todo-finish", objectType = "todo")
+  @AuditDiff(objectType = "todo")
   public DataEnvelope<TodoView> finish(@PathVariable long todoId, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.finish(resolver.resolve(request), todoId));
   }
@@ -123,6 +135,8 @@ public class TodoController {
   @PostMapping("/todos/{todoId}/activate")
   @Operation(operationId = "activateTodo")
   @RequirePrivilege("todo-activate")
+  @Audit(action = "todo-activate", objectType = "todo")
+  @AuditDiff(objectType = "todo")
   public DataEnvelope<TodoView> activate(@PathVariable long todoId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.activate(resolver.resolve(request), todoId, comment(body)));
@@ -131,6 +145,8 @@ public class TodoController {
   @PostMapping("/todos/{todoId}/close")
   @Operation(operationId = "closeTodo")
   @RequirePrivilege("todo-close")
+  @Audit(action = "todo-close", objectType = "todo")
+  @AuditDiff(objectType = "todo")
   public DataEnvelope<TodoView> close(@PathVariable long todoId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.close(resolver.resolve(request), todoId, comment(body)));
@@ -139,6 +155,8 @@ public class TodoController {
   @PostMapping("/todos/{todoId}/assign")
   @Operation(operationId = "assignTodo")
   @RequirePrivilege("todo-assign")
+  @Audit(action = "todo-assign", objectType = "todo")
+  @AuditDiff(objectType = "todo")
   public DataEnvelope<TodoView> assign(@PathVariable long todoId,
       @RequestBody TodoActionHandler.TodoAssignRequest body, HttpServletRequest request) {
     return DataEnvelope.of(

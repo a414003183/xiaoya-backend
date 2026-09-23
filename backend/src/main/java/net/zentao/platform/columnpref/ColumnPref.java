@@ -31,8 +31,7 @@ public record ColumnPref(String resource, List<ColumnPrefItem> columns) {
   public static String normalizeResource(String resource) {
     String trimmed = resource == null ? "" : resource.trim();
     if (trimmed.isEmpty() || trimmed.length() > RESOURCE_MAX || !RESOURCE_PATTERN.matcher(trimmed).matches()) {
-      throw ApiException.validation(
-          Map.of("resource", "资源标识非法：仅小写字母/数字/连字符，1–" + RESOURCE_MAX + " 位。"));
+      throw ApiException.validation(Map.of("resource", "invalid"));
     }
     return trimmed;
   }
@@ -43,23 +42,23 @@ public record ColumnPref(String resource, List<ColumnPrefItem> columns) {
    */
   public static List<ColumnPrefItem> normalizeColumns(List<ColumnPrefItem> columns) {
     if (columns == null || columns.isEmpty()) {
-      throw ApiException.validation(Map.of("columns", "列设置不能为空。"));
+      throw ApiException.validation(Map.of("columns", "empty"));
     }
     if (columns.size() > COLUMNS_MAX) {
-      throw ApiException.validation(Map.of("columns", "列数超出上限（" + COLUMNS_MAX + "）。"));
+      throw ApiException.validation(Map.of("columns", "tooMany"));
     }
     List<ColumnPrefItem> normalized = new ArrayList<>(columns.size());
     Set<String> seen = new LinkedHashSet<>();
     for (ColumnPrefItem item : columns) {
       if (item == null) {
-        throw ApiException.validation(Map.of("columns", "列项不能为空。"));
+        throw ApiException.validation(Map.of("columns", "itemEmpty"));
       }
       String key = item.key() == null ? "" : item.key().trim();
       if (key.isEmpty() || key.length() > KEY_MAX) {
-        throw ApiException.validation(Map.of("columns", "列标识非法（1–" + KEY_MAX + " 位、非空白）。"));
+        throw ApiException.validation(Map.of("columns", "keyInvalid"));
       }
       if (!seen.add(key)) {
-        throw ApiException.validation(Map.of("columns", "列标识重复：" + key + "。"));
+        throw ApiException.validation(Map.of("columns", "keyDuplicated"));
       }
       normalized.add(new ColumnPrefItem(key, item.visible(), normalizeFixed(item)));
     }
@@ -73,7 +72,7 @@ public record ColumnPref(String resource, List<ColumnPrefItem> columns) {
       return null;
     }
     if (!FIXED_VALUES.contains(fixed)) {
-      throw ApiException.validation(Map.of("columns", "固定方向非法：" + fixed + "（left/right/null）。"));
+      throw ApiException.validation(Map.of("columns", "fixedInvalid"));
     }
     return fixed;
   }

@@ -7,9 +7,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.CategoryView;
 import net.zentao.product.api.ProductApi;
@@ -59,7 +61,7 @@ public class CategoryQueryService {
     Filters filters = Filters.parse(params, REGISTRY);
     boolean hasType = filters.clauses().stream().anyMatch(clause -> "type".equals(clause.field()));
     if (!hasType) {
-      throw ApiException.badRequest("分类树必须指定 filters[type]。");
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "category.query.typeRequired");
     }
     QueryCondition injected = new QueryColumn("deleted_at").isNull().and(new QueryColumn("product_id").eq(productId));
     QueryCondition keyword = keywordCondition(filters.q());
@@ -73,6 +75,6 @@ public class CategoryQueryService {
   }
 
   private QueryCondition keywordCondition(String q) {
-    return q == null || q.isBlank() ? null : new QueryColumn("name").like("%" + q + "%");
+    return q == null || q.isBlank() ? null : new QueryColumn("name").likeRaw(LikePatterns.contains(q));
   }
 }

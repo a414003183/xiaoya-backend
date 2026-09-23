@@ -88,36 +88,40 @@ class SessionHardeningTest extends ApiTestSupport {
     assertTrue(expiresAt.isAfter(now), "会话仍在有效期内: " + expiresAt);
   }
 
-  /** 直接落一行会话（绕过登录），用于构造绝对过期边界会话。 */
+  /**
+   * 直接落一行会话（绕过登录），用于构造绝对过期边界会话；**返回 cookie 里的明文 token**，
+   * 行 id 落的是它的 sha256（T51 SEC-03：库里没有明文，夹具也照此口径）。
+   */
   private String insertSession(Instant createdAt, Instant expiresAt, Instant lastSeenAt) throws Exception {
-    String id = UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "");
+    String token = UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "");
     try (var connection = dataSource.getConnection();
         var insert = connection.prepareStatement(
             "INSERT INTO session (id, account_id, account, created_at, expires_at, last_seen_at)"
                 + " SELECT ?, id, account, ?, ?, ? FROM account WHERE account = 'admin'")) {
-      insert.setString(1, id);
+      insert.setString(1, SessionTokenHash.of(token));
       insert.setTimestamp(2, Timestamp.from(createdAt));
       insert.setTimestamp(3, Timestamp.from(expiresAt));
       insert.setTimestamp(4, Timestamp.from(lastSeenAt));
       assertEquals(1, insert.executeUpdate());
     }
-    return id;
+    return token;
   }
 
-  private int sessionRowCount(String id) throws Exception {
+  /** 按 cookie 里的明文 token 查行（内部换算摘要——与生产解析链同口径）。 */
+  private int sessionRowCount(String token) throws Exception {
     try (var connection = dataSource.getConnection();
         var query = connection.prepareStatement("SELECT COUNT(*) FROM session WHERE id = ?")) {
-      query.setString(1, id);
+      query.setString(1, SessionTokenHash.of(token));
       var resultSet = query.executeQuery();
       resultSet.next();
       return resultSet.getInt(1);
     }
   }
 
-  private Instant sessionExpiresAt(String id) throws Exception {
+  private Instant sessionExpiresAt(String token) throws Exception {
     try (var connection = dataSource.getConnection();
         var query = connection.prepareStatement("SELECT expires_at FROM session WHERE id = ?")) {
-      query.setString(1, id);
+      query.setString(1, SessionTokenHash.of(token));
       var resultSet = query.executeQuery();
       assertTrue(resultSet.next(), "会话行仍应存在");
       return resultSet.getTimestamp(1).toInstant();

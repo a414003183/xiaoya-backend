@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.i18n.MessageResolver;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.quality.api.BatchCreateResult;
 import org.springframework.stereotype.Component;
@@ -15,9 +16,12 @@ public class BatchCreateBugHandler {
   private static final int MAX_ITEMS = 50;
 
   private final CreateBugHandler createHandler;
+  private final MessageResolver messages;
 
-  public BatchCreateBugHandler(CreateBugHandler createHandler) {
+  public BatchCreateBugHandler(CreateBugHandler createHandler,
+      MessageResolver messages) {
     this.createHandler = createHandler;
+    this.messages = messages;
   }
 
   public BatchCreateResult handle(SessionPrincipal actor, long productId,
@@ -34,7 +38,7 @@ public class BatchCreateBugHandler {
       try {
         results.add(BatchCreateResult.Item.ok(index, createHandler.handle(actor, productId, item).id()));
       } catch (ApiException e) {
-        results.add(BatchCreateResult.Item.failed(index, e.errorCode().code() + ":" + e.getMessage()));
+        results.add(BatchCreateResult.Item.failed(index, e.errorCode().code() + ":" + messages.forRequest(e)));
       }
       index += 1;
     }

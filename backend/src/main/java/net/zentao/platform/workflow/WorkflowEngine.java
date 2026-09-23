@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import org.springframework.stereotype.Component;
 
 /**
@@ -54,7 +55,7 @@ public class WorkflowEngine {
       break;
     }
     if (chosen == null) {
-      throw ApiException.stateActionNotAllowed("当前状态不允许该动作：" + action);
+      throw ApiException.keyed(ErrorCode.STATE_ACTION_NOT_ALLOWED, "workflow.state.actionDenied", action);
     }
 
     for (CompiledGuard guard : chosen.guards()) {
@@ -62,7 +63,7 @@ public class WorkflowEngine {
         continue;
       }
       if (!guard.expr().test(source)) {
-        throw ApiException.guardNotSatisfied("守卫未满足：" + guard.definition().name());
+        throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "workflow.guard.notSatisfied", guard.definition().name());
       }
     }
 
@@ -77,11 +78,11 @@ public class WorkflowEngine {
   private List<CompiledTransition> candidates(String domain, String action) {
     Map<String, List<CompiledTransition>> byAction = machines.get(domain);
     if (byAction == null) {
-      throw ApiException.internal("未注册的状态机：" + domain);
+      throw ApiException.keyed(ErrorCode.INTERNAL_ERROR, "workflow.machine.unregistered", domain);
     }
     List<CompiledTransition> candidates = byAction.get(action);
     if (candidates == null) {
-      throw ApiException.stateActionNotAllowed("未知动作：" + action);
+      throw ApiException.keyed(ErrorCode.STATE_ACTION_NOT_ALLOWED, "workflow.action.unknown", action);
     }
     return candidates;
   }

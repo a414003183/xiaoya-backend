@@ -2,6 +2,7 @@ package net.zentao.requirement.app;
 
 import java.util.function.Consumer;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.workflow.WorkflowEngine;
 import net.zentao.platform.workflow.WorkflowTarget;
@@ -20,9 +21,9 @@ final class StoryActionSupport {
 
   /** 详情/动作前置：不存在 → 40401；产品不可见 → 40302（requirement 卡 §7）。 */
   static Story require(SessionPrincipal actor, StoryRepository repository, ProductApi productApi, long storyId) {
-    Story story = repository.findActiveById(storyId).orElseThrow(() -> ApiException.notFound("需求"));
+    Story story = repository.findActiveById(storyId).orElseThrow(() -> ApiException.notFound("entity.story"));
     if (!productApi.canAccess(actor, story.productId())) {
-      throw ApiException.dataForbidden("无权访问该需求。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "story.guard.forbidden");
     }
     return story;
   }
@@ -42,7 +43,7 @@ final class StoryActionSupport {
   }
 
   static Story save(StoryRepository repository, Story story) {
-    return repository.update(story).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+    return repository.update(story).orElseThrow(() -> ApiException.lockConflict());
   }
 
   /** workflow 作用对象适配（聚合不实现 platform 接口，actor 由 app 层注入）。 */

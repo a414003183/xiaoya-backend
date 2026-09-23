@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Set;
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.ProductApi;
 import net.zentao.quality.api.SuiteView;
@@ -117,7 +118,7 @@ public class SuiteHandlers {
   public void deleteLibrary(SessionPrincipal actor, long libraryId) {
     Suite library = queryService.requireLibrary(libraryId);
     if (caseRepository.countActiveInLibrary(library.id()) > 0) {
-      throw ApiException.guardNotSatisfied("用例库内存在未删用例，无法删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "library.guard.hasCases");
     }
     repository.softDelete(library.id(), actor.account(), Instant.now());
     activityRecorder.record(actor.account(), "library", library.id(), "deleted", null, null);
@@ -125,7 +126,7 @@ public class SuiteHandlers {
 
   private SuiteView update(SessionPrincipal actor, Suite suite, SuiteUpdateRequest command, String objectType) {
     if (command.lockVersion() == null || command.lockVersion() != suite.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     validateName(command.name());
     if (command.type() != null && !SUITE_TYPES.contains(command.type()) && !suite.isLibrary()) {
@@ -134,7 +135,7 @@ public class SuiteHandlers {
     suite.update(command.name(), command.description(), command.type(), command.sort());
     suite.markUpdatedBy(actor.account());
     Suite saved = repository.update(suite)
-        .orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+        .orElseThrow(() -> ApiException.lockConflict());
     activityRecorder.record(actor.account(), objectType, saved.id(), "edited", null, null);
     return SuiteView.detailOf(saved, repository.countCases(List.of(saved.id())).getOrDefault(saved.id(), 0L));
   }
@@ -158,7 +159,7 @@ public class SuiteHandlers {
   private SuiteView persistRelation(SessionPrincipal actor, Suite suite, String action) {
     repository.replaceCases(suite.id(), suite.caseIds());
     suite.markUpdatedBy(actor.account());
-    repository.update(suite).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+    repository.update(suite).orElseThrow(() -> ApiException.lockConflict());
     activityRecorder.record(actor.account(), suite.isLibrary() ? "library" : "suite", suite.id(), action,
         null, null);
     return SuiteView.detailOf(suite, suite.caseIds().size());

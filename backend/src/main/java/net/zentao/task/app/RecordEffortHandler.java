@@ -9,6 +9,7 @@ import java.util.Map;
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.activity.ActivityRepository;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.workflow.WorkflowEngine;
 import net.zentao.project.api.ExecutionApi;
@@ -59,10 +60,10 @@ public class RecordEffortHandler {
   public EffortView handle(SessionPrincipal actor, long taskId, EffortCreateRequest command) {
     Task task = TaskGuard.requireWritable(taskRepository, executionApi, actor, taskId);
     if (task.isParent()) {
-      throw ApiException.stateActionNotAllowed("父任务不支持登记工时（工时由子任务合计承载）。");
+      throw ApiException.keyed(ErrorCode.STATE_ACTION_NOT_ALLOWED, "task.state.parentEffortDenied");
     }
     if ("closed".equals(task.status()) || "cancel".equals(task.status())) {
-      throw ApiException.stateActionNotAllowed("任务已关闭或取消，不可登记工时。");
+      throw ApiException.keyed(ErrorCode.STATE_ACTION_NOT_ALLOWED, "task.state.effortDenied");
     }
     if (command == null || command.consumedHours() == null) {
       throw ApiException.validation(Map.of("consumedHours", "required"));

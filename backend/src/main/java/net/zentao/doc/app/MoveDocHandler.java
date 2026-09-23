@@ -60,7 +60,7 @@ public class MoveDocHandler {
         target.productId(), target.projectId(), target.executionId());
     doc.markUpdatedBy(actor.account());
     Doc saved = repository.update(doc)
-        .orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+        .orElseThrow(() -> ApiException.lockConflict());
     repository.replacePathPrefix(oldPath, newPath);
     saved.applyPath(newPath);
     engine.fire(new DocTarget(saved, null, false, actor.account()), "move", null);

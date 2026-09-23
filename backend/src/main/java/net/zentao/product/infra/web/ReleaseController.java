@@ -3,6 +3,8 @@ package net.zentao.product.infra.web;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import net.zentao.platform.activity.ActivityQueryService;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.CommentRequest;
@@ -55,6 +57,7 @@ public class ReleaseController {
   @PostMapping("/products/{productId}/releases")
   @Operation(operationId = "createRelease")
   @RequirePrivilege("release-create")
+  @Audit(action = "release-create", objectType = "release")
   public DataEnvelope<ReleaseView> create(@PathVariable long productId,
       @RequestBody ReleaseHandlers.ReleaseCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.create(resolver.resolve(request), productId, body));
@@ -70,6 +73,8 @@ public class ReleaseController {
   @PatchMapping("/releases/{releaseId}")
   @Operation(operationId = "updateRelease")
   @RequirePrivilege("release-edit")
+  @Audit(action = "release-update", objectType = "release")
+  @AuditDiff(objectType = "release")
   public DataEnvelope<ReleaseView> update(@PathVariable long releaseId,
       @RequestBody ReleaseHandlers.ReleaseUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.update(resolver.resolve(request), releaseId, body));
@@ -78,6 +83,8 @@ public class ReleaseController {
   @DeleteMapping("/releases/{releaseId}")
   @Operation(operationId = "deleteRelease")
   @RequirePrivilege("release-delete")
+  @Audit(action = "release-delete", objectType = "release")
+  @AuditDiff(objectType = "release")
   public DataEnvelope<Void> delete(@PathVariable long releaseId, HttpServletRequest request) {
     handlers.delete(resolver.resolve(request), releaseId);
     return DataEnvelope.empty();
@@ -86,6 +93,8 @@ public class ReleaseController {
   @PostMapping("/releases/{releaseId}/terminate")
   @Operation(operationId = "terminateRelease")
   @RequirePrivilege("release-terminate")
+  @Audit(action = "release-terminate", objectType = "release")
+  @AuditDiff(objectType = "release")
   public DataEnvelope<ReleaseView> terminate(@PathVariable long releaseId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.terminate(resolver.resolve(request), releaseId, comment(body)));
@@ -108,6 +117,7 @@ public class ReleaseController {
   @PostMapping("/releases/{releaseId}/link")
   @Operation(operationId = "linkRelease")
   @RequirePrivilege("release-link")
+  @Audit(action = "release-link", objectType = "release")
   public DataEnvelope<ReleaseView> link(@PathVariable long releaseId, @RequestBody LinkRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(linkHandler.link(resolver.resolve(request), releaseId, body));
@@ -116,6 +126,7 @@ public class ReleaseController {
   @PostMapping("/releases/{releaseId}/unlink")
   @Operation(operationId = "unlinkRelease")
   @RequirePrivilege("release-link")
+  @Audit(action = "release-unlink", objectType = "release")
   public DataEnvelope<ReleaseView> unlink(@PathVariable long releaseId, @RequestBody LinkRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(linkHandler.unlink(resolver.resolve(request), releaseId, body));

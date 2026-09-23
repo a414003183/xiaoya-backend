@@ -19,7 +19,7 @@ public record PlanView(
     LocalDate endDate,
     Instant finishedAt,
     Instant closedAt,
-    String closedReason,
+    @Schema(allowableValues = {"cancel", "done"}) String closedReason,
     Map<String, Object> customFields,
     String createdBy,
     Instant createdAt,

@@ -2,6 +2,7 @@ package net.zentao.requirement.app;
 
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.ProductApi;
 import net.zentao.requirement.domain.Story;
@@ -34,10 +35,10 @@ public class DeleteStoryHandler {
   public void handle(SessionPrincipal actor, long storyId) {
     Story story = StoryActionSupport.require(actor, repository, productApi, storyId);
     if (taskApi.hasActiveTasksByStory(storyId)) {
-      throw ApiException.guardNotSatisfied("需求下存在未删除的任务，不能删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "story.guard.hasTasks");
     }
     if (repository.existsActiveByParent(storyId)) {
-      throw ApiException.guardNotSatisfied("存在未删除的子需求，不能删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "story.guard.hasChildren");
     }
     repository.softDelete(storyId);
     activityRecorder.record(actor.account(), "story", storyId, "deleted", null, null);

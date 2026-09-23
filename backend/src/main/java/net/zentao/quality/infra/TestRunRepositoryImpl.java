@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.quality.domain.TestRun;
 import net.zentao.quality.domain.TestRunRepository;
 import org.springframework.stereotype.Component;
@@ -77,7 +78,7 @@ public class TestRunRepositoryImpl implements TestRunRepository {
   @Override
   public void softDelete(long id, String actor, Instant at) {
     // test_run_case 历史行与已回填 reportId 保留（A-07）
-    Db.updateByCondition("test_run", Row.of("deleted_at", at).set("updated_by", actor),
+    SoftDeletes.apply("test_run", Row.of("deleted_at", at).set("updated_by", actor),
         new QueryColumn("id").eq(id).and(DELETED_AT.isNull()));
   }
 

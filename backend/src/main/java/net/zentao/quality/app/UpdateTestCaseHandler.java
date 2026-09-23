@@ -1,13 +1,14 @@
 package net.zentao.quality.app;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.ProductApi;
 import net.zentao.quality.api.TestCaseView;
 import net.zentao.quality.domain.TestCase;
 import net.zentao.quality.domain.TestCaseRepository;
-import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,13 +41,14 @@ public class UpdateTestCaseHandler {
   public TestCaseView handle(SessionPrincipal actor, long caseId, TestCaseUpdateRequest command) {
     TestCase testCase = TestCaseActionSupport.require(actor, repository, productApi, caseId);
     if (command.lockVersion() == null || command.lockVersion() != testCase.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     if (command.status() != null) {
       try {
         testCase.requireMarkerTransition(command.status());
       } catch (IllegalArgumentException e) {
-        throw ApiException.badRequest(e.getMessage());
+        // 领域抛的是开发串，不透出（T63 起异常文案只走语言包键）；错误码 40001 不变
+        throw ApiException.keyed(ErrorCode.BAD_REQUEST, "common.message.stateActionNotAllowed");
       }
     }
     TestCaseFields.validate(command.title(), command.keywords(), command.priority(), command.type(),

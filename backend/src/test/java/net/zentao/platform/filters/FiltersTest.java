@@ -153,4 +153,48 @@ class FiltersTest {
         "format", new String[] {"json"}), REGISTRY);
     assertEquals(200, notCsv.limit());
   }
+
+  @Test
+  @DisplayName("BE-07：forCount 去排序、分页取缺省，过滤条件与 q 原样保留")
+  void forCount() {
+    Filters filters = Filters.parse(
+        Map.of(
+            "filters[status]", new String[] {"active"},
+            "sort", new String[] {"-id"},
+            "page", new String[] {"3"},
+            "limit", new String[] {"50"},
+            "q", new String[] {"登录"}),
+        REGISTRY);
+    Filters count = filters.forCount();
+    assertEquals(filters.clauses(), count.clauses());
+    assertEquals("登录", count.q());
+    assertEquals(List.of(), count.sortKeys());
+    assertEquals(Filters.DEFAULT_PAGE, count.page());
+    assertEquals(Filters.DEFAULT_LIMIT, count.limit());
+    assertEquals(0, count.offset());
+  }
+
+  @Test
+  @DisplayName("BE-14：翻页深度上限（offset ≤ 10000，越界即 40001 而非照跑）")
+  void offsetCap() {
+    assertEquals(10000, parse("page", "501").offset());
+    assertEquals(40001, badRequestOf(() -> parse("page", "502")).errorCode().code());
+    // csv 放宽的是 limit，不是深度：limit=5000 时第 3 页（offset=10000）可用、第 4 页越界
+    assertEquals(10000, Filters.parse(
+        Map.of("page", new String[] {"3"}, "limit", new String[] {"5000"}, "format", new String[] {"csv"}),
+        REGISTRY).offset());
+    assertEquals(40001, badRequestOf(() -> Filters.parse(
+        Map.of("page", new String[] {"4"}, "limit", new String[] {"5000"}, "format", new String[] {"csv"}),
+        REGISTRY)).errorCode().code());
+    // 溢出不得溜过闸门：page 取 Integer.MAX_VALUE 时 (page-1)*limit 在 int 下会变负数
+    assertEquals(40001, badRequestOf(() -> parse("page", String.valueOf(Integer.MAX_VALUE))).errorCode().code());
+  }
+
+  @Test
+  @DisplayName("BE-14：IN 值数上限（200 个可用，201 个 → 40001）")
+  void inValuesCap() {
+    String atLimit = "id,".repeat(Filters.MAX_IN_VALUES - 1) + "id";
+    assertEquals(Filters.MAX_IN_VALUES, parse("filters[id]", atLimit).clauses().getFirst().values().size());
+    assertEquals(40001, badRequestOf(() -> parse("filters[id]", atLimit + ",id")).errorCode().code());
+  }
 }

@@ -27,6 +27,20 @@
     <testcontainers.version>2.0.5</testcontainers.version>
     <!-- 语言包 Excel 导入/导出（platform 卡 §3.12）：Boot BOM 不管 POI，故显式封版本 -->
     <poi.version>5.2.5</poi.version>
+    <!-- T94 覆盖率 ratchet（CONVENTIONS §10）：后端行覆盖最低线。**ratchet 只升不降**——
+         改这个值必须往上调，并同步 ci.yml 注释与 docs/plan/governance/quality-gate.md（注明日期与理由）。
+         2026-09-22 定值 0.80：T73 实测基线 82.84%（JaCoCo 行覆盖），留 ~3pt 抖动余量；
+         升级路径 = 实测站稳后按阶段上调（目标 0.85，见 CONVENTIONS §10）。 -->
+    <jacoco.line.minimum>0.80</jacoco.line.minimum>
+    <!-- T94 Sonar 配置（sonar:sonar 消费；质量阈定义见 docs/plan/governance/quality-gate.md）。
+         扫描是**条件触发**（ci.yml 只在 SONAR_HOST/SONAR_TOKEN 存在时跑），本机无 SonarQube 服务；
+         机器可判项的本地替代门禁见 quality-gate.md 的对照表。 -->
+    <sonar.projectKey>zentao-admin</sonar.projectKey>
+    <sonar.projectName>zentao-admin</sonar.projectName>
+    <sonar.sources>src/main/java</sonar.sources>
+    <sonar.tests>src/test/java</sonar.tests>
+    <sonar.exclusions>**/db/migration/**</sonar.exclusions>
+    <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
   </properties>
 
   <dependencies>
@@ -38,6 +52,12 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <!-- T75/OPS-10：Prometheus 指标源（/actuator/prometheus）；版本由 Boot BOM 管理。
+         只放指标出口，不引 Prometheus/Grafana 服务端编排（那是 T79）。 -->
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
     </dependency>
     <!-- A-04 CSV 导出横切（@Around 切面）需要 AspectJ 支持（Boot 4 起 starter 更名为 aspectj）；版本由 Boot BOM 管理 -->
     <dependency>
@@ -138,6 +158,110 @@
           </excludes>
         </configuration>
       </plugin>
+      <!-- T73/OPS-02 覆盖率采集（阈值红线归 T94，此处只采集不设最低线）：
+           prepare-agent 织入 surefire/failsafe，report 在 test 与 verify 两相各出一次
+           target/site/jacoco/jacoco.xml（mvn test / mvn verify 都能拿到产物，后写覆盖先写）。 -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.15</version>
+        <executions>
+          <execution>
+            <id>jacoco-prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>jacoco-report-test</id>
+            <phase>test</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>jacoco-report-verify</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+          </execution>
+          <!-- T94 覆盖率 ratchet 门禁：行覆盖 < ${jacoco.line.minimum} 直接红（verify 相生效；
+               CI 的 backend-test 跑 `verify -Pit` 即被看护，本地 `mvn test` 不设线属已知口径） -->
+          <execution>
+            <id>jacoco-check</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>${jacoco.line.minimum}</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- T94 格式纪律（CONVENTIONS §10「格式」行的后端半）：默认 = **窄规则集**——只管无用 import /
+           行尾空白 / 文件尾换行，当前代码零改动即绿（逐条对现树验证过）。`mvn spotless:check` 进 CI。
+           ponytail: google-java-format 全量重排只在 `-Pformat-full` opt-in（见下方 profile）——
+           上限 = 全量重排会把多卡并行的语义 diff 淹死；升级路径 = 未来一次纯格式化独立提交后，
+           把 googleJavaFormat 移进默认集并冻结此注释。 -->
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>3.10.2</version>
+        <configuration>
+          <java>
+            <!-- 行尾 PRESERVE（按文件保留既有 EOL）：现树 LF/CRLF 混杂（2026-09-22 实测 686 LF / 96 CRLF），
+                 任何固定行尾策略都判掉半棵树 = 违反「现树零改动即绿」铁律。
+                 下面 7 个排除项 = **文件内** 行尾混杂（CRLF/LF 行并存，实测仅这 7 个）：spotless 的 EOL 归一
+                 是全文件性的，任何策略都会动到它们的行 → 暂不进格式面。
+                 ponytail: 上限 = 不统行尾、这 7 个文件无格式看护；升级路径 = 一次纯 EOL 提交（全树归 LF +
+                 .gitattributes 钉死）后删掉本排除表、lineEndings 改回 UNIX。 -->
+            <lineEndings>PRESERVE</lineEndings>
+            <excludes>
+              <exclude>src/main/java/net/zentao/doc/app/BatchDocHandler.java</exclude>
+              <exclude>src/main/java/net/zentao/org/app/BatchCreateAccountHandler.java</exclude>
+              <exclude>src/main/java/net/zentao/project/infra/ProjectApiImpl.java</exclude>
+              <exclude>src/main/java/net/zentao/quality/app/ImportFromLibraryHandler.java</exclude>
+              <exclude>src/main/java/net/zentao/task/app/RecordEffortHandler.java</exclude>
+              <exclude>src/main/java/net/zentao/task/app/TaskActionHandler.java</exclude>
+              <exclude>src/main/java/net/zentao/workspace/app/MyQueryService.java</exclude>
+            </excludes>
+            <!-- 窄规则集逐条对现树验证过（2026-09-22）：trimTrailingWhitespace / endWithNewline 绿。
+                 removeUnusedImports **暂不启用**：现树实有无用 import（T56 的 LikePatterns 收敛残留等），
+                 启用即红 = 违反「现树零改动即绿」；判违规面见 Sonar（quality-gate.md），
+                 升级路径 = 一次纯 import 清理提交后把它加回来。 -->
+            <trimTrailingWhitespace />
+            <endWithNewline />
+          </java>
+        </configuration>
+        <executions>
+          <execution>
+            <id>spotless-check</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- T94 Sonar 扫描入口（无 executions：只在显式 `mvn -f backend sonar:sonar` 时跑，条件触发见 ci.yml） -->
+      <plugin>
+        <groupId>org.sonarsource.scanner.maven</groupId>
+        <artifactId>sonar-maven-plugin</artifactId>
+        <version>5.8.0.7211</version>
+      </plugin>
     </plugins>
   </build>
 
@@ -158,6 +282,71 @@
                 </goals>
               </execution>
             </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <!-- T94 google-java-format 全量格式化（opt-in，不在默认构建里）：
+         `mvn -f backend spotless:apply -Pformat-full` 一键全量重排；`spotless:check -Pformat-full` 校验。
+         为什么 opt-in：见默认 Spotless 配置处的 ponytail 注释（多卡并行的语义 diff 保护）。
+         用法约定 = 全量重排只做**独立的纯格式化提交**，永不与语义改动混在一个 commit。 -->
+    <profile>
+      <id>format-full</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.diffplug.spotless</groupId>
+            <artifactId>spotless-maven-plugin</artifactId>
+            <configuration>
+              <java>
+                <googleJavaFormat>
+                  <version>1.36.1</version>
+                </googleJavaFormat>
+              </java>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <!-- T94 变异测试（PIT，opt-in 评估工具，不进默认构建/CI）：
+         `mvn -f backend -Ppitest test-compile pitest:mutationCoverage`
+         可收窄目标：`-DtargetClasses=net.zentao.platform.filters.Filters -DtargetTests=…FiltersTest`。
+         结论与接入判据见 docs/plan/governance/quality-gate.md §PIT。 -->
+    <profile>
+      <id>pitest</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.pitest</groupId>
+            <artifactId>pitest-maven</artifactId>
+            <version>1.17.4</version>
+            <dependencies>
+              <dependency>
+                <groupId>org.pitest</groupId>
+                <artifactId>pitest-junit5-plugin</artifactId>
+                <version>1.2.3</version>
+              </dependency>
+              <!-- JUnit 6 对齐：pitest-junit5 插件缺省带旧 junit-platform-launcher，与工程的
+                   junit-jupiter 6.0.3 engine 不齐会炸（OutputDirectoryCreator not available） -->
+              <dependency>
+                <groupId>org.junit.platform</groupId>
+                <artifactId>junit-platform-launcher</artifactId>
+                <version>6.0.3</version>
+              </dependency>
+            </dependencies>
+            <configuration>
+              <targetClasses>
+                <param>net.zentao.platform.*</param>
+              </targetClasses>
+              <targetTests>
+                <param>net.zentao.*</param>
+              </targetTests>
+              <outputFormats>
+                <value>HTML</value>
+                <value>XML</value>
+              </outputFormats>
+              <timestampedReports>false</timestampedReports>
+            </configuration>
           </plugin>
         </plugins>
       </build>

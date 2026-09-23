@@ -6,6 +6,8 @@ import net.zentao.doc.api.DocCategoryTree;
 import net.zentao.doc.api.DocCategoryView;
 import net.zentao.doc.app.DocCategoryHandlers;
 import net.zentao.doc.app.DocCategoryQueryService;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.DataEnvelope;
@@ -47,14 +49,18 @@ public class DocCategoryController {
   @PostMapping("/doc-spaces/{docSpaceId}/categories")
   @Operation(operationId = "createDocCategory")
   @RequirePrivilege("doc-edit")
+  @Audit(action = "doc-category-create", objectType = "docCategory")
   public DataEnvelope<DocCategoryView> create(@PathVariable long docSpaceId,
       @RequestBody DocCategoryHandlers.DocCategoryCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(DocCategoryView.of(handlers.create(resolver.resolve(request), docSpaceId, body)));
   }
 
+  // 路由里有 docSpaceId/categoryId 两个 id 位，横切默认取前者——必须点名 categoryId，否则快照比对的是库不是目录
   @PatchMapping("/doc-spaces/{docSpaceId}/categories/{categoryId}")
   @Operation(operationId = "updateDocCategory")
   @RequirePrivilege("doc-edit")
+  @Audit(action = "doc-category-update", objectType = "docCategory")
+  @AuditDiff(objectType = "docCategory", idParam = "categoryId")
   public DataEnvelope<DocCategoryView> update(@PathVariable long docSpaceId, @PathVariable long categoryId,
       @RequestBody DocCategoryHandlers.DocCategoryUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(
@@ -64,6 +70,8 @@ public class DocCategoryController {
   @DeleteMapping("/doc-spaces/{docSpaceId}/categories/{categoryId}")
   @Operation(operationId = "deleteDocCategory")
   @RequirePrivilege("doc-edit")
+  @Audit(action = "doc-category-delete", objectType = "docCategory")
+  @AuditDiff(objectType = "docCategory", idParam = "categoryId")
   public DataEnvelope<Void> delete(@PathVariable long docSpaceId, @PathVariable long categoryId,
       HttpServletRequest request) {
     handlers.delete(resolver.resolve(request), docSpaceId, categoryId);

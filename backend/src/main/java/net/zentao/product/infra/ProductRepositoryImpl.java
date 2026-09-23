@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.product.domain.Product;
 import net.zentao.product.domain.ProductRepository;
 import org.springframework.stereotype.Component;
@@ -69,7 +70,7 @@ public class ProductRepositoryImpl implements ProductRepository {
 
   @Override
   public void softDelete(long id) {
-    Db.updateByCondition("product", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
+    SoftDeletes.apply("product", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
   }
 
   @Override

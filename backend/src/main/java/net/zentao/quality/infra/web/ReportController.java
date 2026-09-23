@@ -2,7 +2,10 @@ package net.zentao.quality.infra.web;
 
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.DataEnvelope;
@@ -45,6 +48,7 @@ public class ReportController {
   @PostMapping("/executions/{executionId}/reports")
   @Operation(operationId = "createExecutionReport")
   @RequirePrivilege("report-create")
+  @Audit(action = "report-create", objectType = "report")
   public DataEnvelope<ReportView> create(@PathVariable long executionId,
       @RequestBody ReportHandlers.ReportCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.create(resolver.resolve(request), executionId, body));
@@ -60,10 +64,12 @@ public class ReportController {
   @PatchMapping("/reports/{reportId}")
   @Operation(operationId = "updateReport")
   @RequirePrivilege("report-edit")
+  @Audit(action = "report-update", objectType = "report")
+  @AuditDiff(objectType = "report")
   public DataEnvelope<ReportView> update(@PathVariable long reportId,
       @RequestBody ReportHandlers.ReportUpdateRequest body, HttpServletRequest request) {
     if (body.touchesImmutable()) {
-      throw ApiException.badRequest("executionId/projectId/productId 创建后不可改。");
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "report.field.immutable");
     }
     return DataEnvelope.of(handlers.update(resolver.resolve(request), reportId, body));
   }
@@ -71,6 +77,8 @@ public class ReportController {
   @DeleteMapping("/reports/{reportId}")
   @Operation(operationId = "deleteReport")
   @RequirePrivilege("report-delete")
+  @Audit(action = "report-delete", objectType = "report")
+  @AuditDiff(objectType = "report")
   public DataEnvelope<Void> delete(@PathVariable long reportId, HttpServletRequest request) {
     handlers.delete(resolver.resolve(request), reportId);
     return DataEnvelope.empty();

@@ -11,6 +11,7 @@ import java.util.function.Function;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.search.SearchResultView;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.ProductApi;
@@ -70,9 +71,9 @@ public class BugQueryService {
 
   /** 全局搜索（platform 卡 §5.2）：可见集先于 LIKE，命中 title/keywords。 */
   public List<SearchResultView> search(String q, int limit, SessionPrincipal principal) {
-    String like = "%" + q + "%";
+    String like = LikePatterns.contains(q);
     QueryCondition injected = new QueryColumn("deleted_at").isNull()
-        .and(new QueryColumn("title").like(like).or(new QueryColumn("keywords").like(like)));
+        .and(new QueryColumn("title").likeRaw(like).or(new QueryColumn("keywords").likeRaw(like)));
     injected = withScope(injected, principal);
     QueryWrapper query = QueryWrapper.create().where(injected)
         .orderBy(new QueryColumn("updated_at").desc(), new QueryColumn("id").desc()) // banned-words-ok：MyBatis-Flex 构造器方法名
@@ -157,8 +158,7 @@ public class BugQueryService {
     List<BugView> items = repository.queryPage(query, filters.offset(), filters.limit()).stream()
         .map(BugView::of)
         .toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, COLUMNS::get, specialOf(principal), injected);
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), COLUMNS::get, specialOf(principal), injected);
     return new BugList(items, repository.countByQuery(countQuery));
   }
 
@@ -171,7 +171,7 @@ public class BugQueryService {
     if (q == null || q.isBlank()) {
       return null;
     }
-    String like = "%" + q + "%";
-    return new QueryColumn("title").like(like).or(new QueryColumn("keywords").like(like));
+    String like = LikePatterns.contains(q);
+    return new QueryColumn("title").likeRaw(like).or(new QueryColumn("keywords").likeRaw(like));
   }
 }

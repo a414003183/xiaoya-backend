@@ -14,7 +14,7 @@ import net.zentao.org.domain.Account;
 import net.zentao.org.domain.AccountRepository;
 import org.springframework.stereotype.Component;
 
-/** 账号仓储实现（infra：PO ↔ 领域对象；user_group 关联经 Row API 批量读写）。 */
+/** 账号仓储实现（infra：PO ↔ 领域对象；user_role 关联经 Row API 批量读写）。 */
 @Component
 public class AccountRepositoryImpl implements AccountRepository {
 
@@ -78,36 +78,72 @@ public class AccountRepositoryImpl implements AccountRepository {
   }
 
   @Override
-  public List<Long> groupIdsOf(long accountId) {
-    return Db.selectListByCondition("user_group", new QueryColumn("account_id").eq(accountId)).stream()
-        .map(row -> row.getLong("group_id"))
+  public List<Long> roleIdsOf(long accountId) {
+    return Db.selectListByCondition("user_role", new QueryColumn("account_id").eq(accountId)).stream()
+        .map(row -> row.getLong("role_id"))
         .toList();
   }
 
   @Override
-  public void replaceGroups(long accountId, List<Long> groupIds) {
-    Db.deleteByCondition("user_group", new QueryColumn("account_id").eq(accountId));
-    for (Long groupId : groupIds.stream().distinct().toList()) {
-      Db.insert("user_group", Row.of("account_id", accountId).set("group_id", groupId));
+  public void replaceRoles(long accountId, List<Long> roleIds) {
+    Db.deleteByCondition("user_role", new QueryColumn("account_id").eq(accountId));
+    for (Long roleId : roleIds.stream().distinct().toList()) {
+      Db.insert("user_role", Row.of("account_id", accountId).set("role_id", roleId));
     }
   }
 
   @Override
-  public List<Long> findMissingGroupIds(List<Long> groupIds) {
-    if (groupIds.isEmpty()) {
+  public List<Long> findMissingRoleIds(List<Long> roleIds) {
+    if (roleIds.isEmpty()) {
       return List.of();
     }
-    List<Long> unique = groupIds.stream().distinct().toList();
-    List<Row> rows = Db.selectListByCondition("auth_group", new QueryColumn("id").in(unique));
+    List<Long> unique = roleIds.stream().distinct().toList();
+    List<Row> rows = Db.selectListByCondition("role", new QueryColumn("id").in(unique));
     List<Long> found = rows.stream().map(row -> row.getLong("id")).toList();
     List<Long> missing = new ArrayList<>(unique);
     missing.removeAll(found);
     return missing;
   }
 
+  @Override
+  public List<Long> roleMembersOf(long roleId) {
+    return Db.selectListByCondition("user_role", new QueryColumn("role_id").eq(roleId)).stream()
+        .map(row -> row.getLong("account_id"))
+        .toList();
+  }
+
+  @Override
+  public List<String> recentPasswordHashes(long accountId, int limit) {
+    if (limit < 1) {
+      return List.of();
+    }
+    return Db.selectListBySql(
+            "SELECT password FROM password_history WHERE account_id = ? ORDER BY id DESC LIMIT " + limit, accountId)
+        .stream().map(row -> row.getString("password")).toList();
+  }
+
+  @Override
+  public void appendPasswordHistory(long accountId, String passwordHash, String actor, int keep) {
+    Row row = Row.of("account_id", accountId).set("password", passwordHash);
+    if (actor != null) {
+      row.set("created_by", actor);
+    }
+    Db.insert("password_history", row);
+    long stale = Db.selectCountByCondition("password_history", new QueryColumn("account_id").eq(accountId))
+        - Math.max(keep, 0);
+    if (stale <= 0) {
+      return;
+    }
+    // 先取要丢的 id 再按 id 删：同一张表不做自引用子查询（MySQL/H2 对它的求值规则不同）
+    List<Long> staleIds = Db.selectListBySql(
+            "SELECT id FROM password_history WHERE account_id = ? ORDER BY id ASC LIMIT " + stale, accountId)
+        .stream().map(staleRow -> staleRow.getLong("id")).toList();
+    Db.deleteByCondition("password_history", new QueryColumn("id").in(staleIds));
+  }
+
   private static Account toDomain(AccountPO po) {
     return new Account(po.getId(), po.getAccount(), po.getPassword(), po.getRealName(), po.getNickname(),
-        po.getRole(), po.getDepartmentId(), po.getEmail(), po.getMobile(), po.getPhone(), po.getGender(),
+        po.getDepartmentId(), po.getEmail(), po.getMobile(), po.getPhone(), po.getGender(),
         po.getBirthday(), po.getJoinedAt(), po.getAvatarFileId(), po.getStatus(),
         Boolean.TRUE.equals(po.getMustChangePassword()),
         po.getFails() == null ? 0 : po.getFails(), po.getLockedAt(), po.getLastActiveAt(),
@@ -122,7 +158,6 @@ public class AccountRepositoryImpl implements AccountRepository {
     po.setPassword(account.passwordHash());
     po.setRealName(account.realName());
     po.setNickname(account.nickname());
-    po.setRole(account.role());
     po.setDepartmentId(account.departmentId());
     po.setEmail(account.email());
     po.setMobile(account.mobile());
@@ -157,10 +192,4 @@ public class AccountRepositoryImpl implements AccountRepository {
     return mapper.selectCountByQuery((QueryWrapper) whereWrapper);
   }
 
-  @Override
-  public long countByRole(String role) {
-    // 未删口径（deleted_at is null）：软删账号不再占用角色名，与 findAllVisible 同源
-    return mapper.selectCountByCondition(
-        new QueryColumn("role").eq(role).and(new QueryColumn("deleted_at").isNull()));
-  }
 }

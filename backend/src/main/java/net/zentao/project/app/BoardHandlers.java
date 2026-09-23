@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 import net.zentao.org.api.AccountApi;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.workflow.WorkflowEngine;
 import net.zentao.project.domain.AclEntryRepository;
@@ -106,7 +107,7 @@ public class BoardHandlers {
   public BoardView update(SessionPrincipal actor, long boardId, BoardUpdateRequest command) {
     Board board = require(boardId);
     if (command.lockVersion() == null || command.lockVersion() != board.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     Map<String, String> errors = new LinkedHashMap<>();
     String name = command.name() == null ? null : requireName(command.name(), errors);
@@ -162,18 +163,18 @@ public class BoardHandlers {
   public void delete(SessionPrincipal actor, long boardId) {
     queryService.requireVisibleBoard(actor, boardId);
     if (cardRepository.countActiveByBoardId(boardId) > 0) {
-      throw ApiException.guardNotSatisfied("看板内仍有卡片，不能删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "board.guard.hasCards");
     }
     repository.softDelete(boardId);
   }
 
   private Board require(long boardId) {
-    return repository.findActiveById(boardId).orElseThrow(() -> ApiException.notFound("看板"));
+    return repository.findActiveById(boardId).orElseThrow(() -> ApiException.notFound("entity.board"));
   }
 
   private Board save(Board board) {
     return repository.update(board)
-        .orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+        .orElseThrow(() -> ApiException.lockConflict());
   }
 
   private static String requireName(String name, Map<String, String> errors) {

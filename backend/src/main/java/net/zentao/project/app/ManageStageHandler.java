@@ -15,6 +15,7 @@ import net.zentao.platform.error.ApiException;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.project.domain.Stage;
 import net.zentao.project.domain.StageRepository;
@@ -99,7 +100,7 @@ public class ManageStageHandler {
 
   @Transactional
   public StageView update(SessionPrincipal actor, long stageId, StageUpdateRequest command) {
-    Stage stage = repository.findActiveById(stageId).orElseThrow(() -> ApiException.notFound("阶段类型"));
+    Stage stage = repository.findActiveById(stageId).orElseThrow(() -> ApiException.notFound("entity.stage"));
     Map<String, String> errors = new LinkedHashMap<>();
     String name = command.name() == null ? null : requireName(command.name(), errors);
     // PATCH 语义：null = 不修改，故仅在传值时校验
@@ -119,7 +120,7 @@ public class ManageStageHandler {
 
   @Transactional
   public void delete(SessionPrincipal actor, long stageId) {
-    repository.findActiveById(stageId).orElseThrow(() -> ApiException.notFound("阶段类型"));
+    repository.findActiveById(stageId).orElseThrow(() -> ApiException.notFound("entity.stage"));
     repository.softDelete(stageId);
   }
 
@@ -127,7 +128,7 @@ public class ManageStageHandler {
     Filters filters = Filters.parse(params, REGISTRY);
     QueryCondition injected = new QueryColumn("deleted_at").isNull();
     if (filters.q() != null && !filters.q().isBlank()) {
-      injected = injected.and(new QueryColumn("name").like("%" + filters.q() + "%"));
+      injected = injected.and(new QueryColumn("name").likeRaw(LikePatterns.contains(filters.q())));
     }
     List<StageView> items = repository
         .queryPage(FilterPredicate.compile(filters, COLUMNS::get, value -> Optional.empty(), injected),
@@ -135,8 +136,7 @@ public class ManageStageHandler {
         .stream()
         .map(StageView::of)
         .toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, COLUMNS::get, value -> Optional.empty(), injected);
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), COLUMNS::get, value -> Optional.empty(), injected);
     return new StageList(items, repository.countByQuery(countQuery));
   }
 

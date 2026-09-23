@@ -18,7 +18,6 @@ public class AccountPO {
   private String password;
   private String realName;
   private String nickname;
-  private String role;
   private Long departmentId;
   private String email;
   private String mobile;
@@ -79,14 +78,6 @@ public class AccountPO {
 
   public void setNickname(String nickname) {
     this.nickname = nickname;
-  }
-
-  public String getRole() {
-    return role;
-  }
-
-  public void setRole(String role) {
-    this.role = role;
   }
 
   public Long getDepartmentId() {

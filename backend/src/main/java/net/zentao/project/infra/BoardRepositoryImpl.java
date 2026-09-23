@@ -7,6 +7,7 @@ import com.mybatisflex.core.row.Row;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.project.domain.AclEntryRepository;
 import net.zentao.project.domain.Board;
 import net.zentao.project.domain.BoardRepository;
@@ -73,7 +74,7 @@ public class BoardRepositoryImpl implements BoardRepository {
 
   @Override
   public void softDelete(long id) {
-    Db.updateByCondition("board", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
+    SoftDeletes.apply("board", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
   }
 
   private Board toDomain(BoardPO po) {

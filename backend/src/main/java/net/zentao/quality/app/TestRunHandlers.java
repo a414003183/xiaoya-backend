@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.zentao.org.api.AccountApi;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.meta.FieldDefValidator;
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.error.ApiException;
@@ -89,9 +90,9 @@ public class TestRunHandlers {
 
   /** 详情/动作前置：40401 → 产品不可见 40302（quality 卡 §7）。 */
   TestRun require(SessionPrincipal actor, long testRunId) {
-    TestRun run = repository.findActiveById(testRunId).orElseThrow(() -> ApiException.notFound("测试单"));
+    TestRun run = repository.findActiveById(testRunId).orElseThrow(() -> ApiException.notFound("entity.testRun"));
     if (!productApi.canAccess(actor, run.productId())) {
-      throw ApiException.dataForbidden("无权访问该测试单。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "testRun.guard.forbidden");
     }
     return run;
   }
@@ -146,7 +147,7 @@ public class TestRunHandlers {
   public TestRunView update(SessionPrincipal actor, long testRunId, TestRunUpdateRequest command) {
     TestRun run = require(actor, testRunId);
     if (command.lockVersion() == null || command.lockVersion() != run.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     LocalDate beginDate = command.beginDate() == null ? run.beginDate() : command.beginDate();
     LocalDate endDate = command.endDate() == null ? run.endDate() : command.endDate();
@@ -207,7 +208,7 @@ public class TestRunHandlers {
     }
     resultRepository.insertAll(testRunId, distinct, command.assignee());
     run.markUpdatedBy(actor.account());
-    repository.update(run).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+    repository.update(run).orElseThrow(() -> ApiException.lockConflict());
     return testRunId;
   }
 
@@ -216,7 +217,7 @@ public class TestRunHandlers {
     TestRun run = require(actor, testRunId);
     resultRepository.delete(testRunId, caseIds == null ? List.of() : caseIds);
     run.markUpdatedBy(actor.account());
-    repository.update(run).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+    repository.update(run).orElseThrow(() -> ApiException.lockConflict());
     return testRunId;
   }
 
@@ -229,7 +230,7 @@ public class TestRunHandlers {
     }
     validateAccounts(List.of(command.assignee()));
     Result result = resultRepository.find(testRunId, caseId)
-        .orElseThrow(() -> ApiException.notFound("执行清单行"));
+        .orElseThrow(() -> ApiException.notFound("entity.testRunCase"));
     result.assignTo(command.assignee());
     resultRepository.update(result);
     TestCase testCase = caseRepository.findActiveByIds(List.of(caseId)).stream().findFirst().orElse(null);
@@ -254,7 +255,7 @@ public class TestRunHandlers {
   }
 
   TestRun save(TestRun run) {
-    return repository.update(run).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+    return repository.update(run).orElseThrow(() -> ApiException.lockConflict());
   }
 
   private void validate(String name, Integer priority, String type, LocalDate beginDate, LocalDate endDate,

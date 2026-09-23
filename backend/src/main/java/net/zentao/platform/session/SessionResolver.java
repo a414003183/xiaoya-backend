@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.time.Duration;
 import java.time.Instant;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +15,9 @@ import org.springframework.stereotype.Component;
  * 另设绝对过期上限（06 对齐 A7-2）：会话自 createdAt 起最长存活 max-lifetime（默认 30d），
  * 滑动续期不得突破——续期值截断到该上限，超限请求走与过期相同的删行 + 40101 路径。
  * 解析结果按请求缓存，拦截器与控制器同请求共享，不重复查库。
+ *
+ * <p>T51 SEC-03：库里存的是 cookie token 的 sha256（{@code SessionRepository#findByToken} 换算），
+ * 故明文只在 cookie 与内存里过一手；对外要"本条会话"一律用 {@link SessionPrincipal#sessionId()}。
  */
 @Component
 public class SessionResolver {
@@ -36,29 +40,41 @@ public class SessionResolver {
   }
 
   public SessionPrincipal resolve(HttpServletRequest request) {
-    Object cached = request.getAttribute(PRINCIPAL_ATTRIBUTE);
-    if (cached instanceof SessionPrincipal principal) {
-      return principal;
+    SessionPrincipal cached = cachedPrincipal(request);
+    if (cached != null) {
+      return cached;
     }
-    SessionPO session = repository.findById(currentToken(request))
-        .orElseThrow(() -> ApiException.unauthenticated("未登录或会话已过期。"));
+    SessionPO session = repository.findByToken(currentToken(request))
+        .orElseThrow(() -> ApiException.keyed(ErrorCode.UNAUTHENTICATED, "error.session.expired"));
     Instant now = Instant.now();
     Instant absoluteDeadline = session.getCreatedAt().plus(maxLifetime);
     if (now.isAfter(session.getExpiresAt()) || now.isAfter(absoluteDeadline)) {
       repository.delete(session.getId());
-      throw ApiException.unauthenticated("未登录或会话已过期。");
+      throw ApiException.keyed(ErrorCode.UNAUTHENTICATED, "error.session.expired");
     }
     if (session.getLastSeenAt() == null || session.getLastSeenAt().plus(TOUCH_INTERVAL).isBefore(now)) {
       Instant renewed = now.plus(ttl);
       repository.touch(session.getId(), now, renewed.isAfter(absoluteDeadline) ? absoluteDeadline : renewed);
     }
-    SessionPrincipal principal = new SessionPrincipal(session.getAccountId(), session.getAccount());
+    SessionPrincipal principal = new SessionPrincipal(session.getId(), session.getAccountId(), session.getAccount());
     request.setAttribute(PRINCIPAL_ATTRIBUTE, principal);
     return principal;
   }
 
-  /** 供登出/解析取原始 token（登出后 cookie 立即失效）。 */
-  public String currentToken(HttpServletRequest request) {
+  /**
+   * 已解析过的会话：只读请求属性里的缓存，**不查库、不抛错**，没有则返回 null（T59）。
+   *
+   * <p>给横切/工具类取账号用——拦截器（{@code PrivilegeInterceptor}）对非匿名端点已解析过一次，
+   * 这里拿的是同一份，不产生额外查询。**匿名请求会拿到 null**：调用方须自行跳过（不要退化成查库或抛 40101），
+   * 口径是"匿名请求不计入任何账号的配额"。
+   */
+  public SessionPrincipal cachedPrincipal(HttpServletRequest request) {
+    Object cached = request.getAttribute(PRINCIPAL_ATTRIBUTE);
+    return cached instanceof SessionPrincipal principal ? principal : null;
+  }
+
+  /** 取 cookie 里的原始 token：**只在本类内换算摘要用**（对外一律经 SessionPrincipal#sessionId）。 */
+  private String currentToken(HttpServletRequest request) {
     Cookie[] cookies = request.getCookies();
     if (cookies != null) {
       for (Cookie cookie : cookies) {
@@ -67,6 +83,6 @@ public class SessionResolver {
         }
       }
     }
-    throw ApiException.unauthenticated("未登录或会话已过期。");
+    throw ApiException.keyed(ErrorCode.UNAUTHENTICATED, "error.session.expired");
   }
 }

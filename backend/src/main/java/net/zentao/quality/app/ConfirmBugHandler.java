@@ -2,6 +2,7 @@ package net.zentao.quality.app;
 
 import net.zentao.org.api.AccountApi;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.workflow.WorkflowEngine;
 import net.zentao.product.api.ProductApi;
@@ -37,7 +38,7 @@ public class ConfirmBugHandler {
     return BugActionSupport.fire(actor, repository, productApi, engine, bugId, "confirm", command.comment(),
         bug -> {
           if (bug.confirmed()) {
-            throw ApiException.stateActionNotAllowed("Bug 已确认，不可重复确认。");
+            throw ApiException.keyed(ErrorCode.STATE_ACTION_NOT_ALLOWED, "bug.state.alreadyConfirmed");
           }
           bug.confirmBy(command.assignee());
         });

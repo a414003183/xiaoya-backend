@@ -9,6 +9,7 @@ import java.util.Set;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.BranchView;
 import net.zentao.product.api.ProductApi;
@@ -57,13 +58,12 @@ public class BranchQueryService {
     List<BranchView> items = repository.queryPage(query, filters.offset(), filters.limit()).stream()
         .map(BranchView::of)
         .toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, COLUMNS::get, value -> java.util.Optional.empty(),
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), COLUMNS::get, value -> java.util.Optional.empty(),
         injected);
     return new BranchList(items, repository.countByQuery(countQuery));
   }
 
   private QueryCondition keywordCondition(String q) {
-    return q == null || q.isBlank() ? null : new QueryColumn("name").like("%" + q + "%");
+    return q == null || q.isBlank() ? null : new QueryColumn("name").likeRaw(LikePatterns.contains(q));
   }
 }

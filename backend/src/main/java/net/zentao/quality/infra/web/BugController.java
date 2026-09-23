@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import net.zentao.platform.activity.ActivityQueryService;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.BatchActionRequest;
@@ -85,6 +87,7 @@ public class BugController {
   @PostMapping("/products/{productId}/bugs")
   @Operation(operationId = "createBug")
   @RequirePrivilege("bug-create")
+  @Audit(action = "bug-create", objectType = "bug")
   public DataEnvelope<BugView> create(@PathVariable long productId,
       @RequestBody CreateBugHandler.BugCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(createHandler.handle(resolver.resolve(request), productId, body));
@@ -93,6 +96,7 @@ public class BugController {
   @PostMapping("/products/{productId}/bugs/batch")
   @Operation(operationId = "batchCreateBugs")
   @RequirePrivilege("bug-create")
+  @Audit(action = "batch-operation", objectType = "bug")
   public DataEnvelope<BatchCreateResult> batchCreate(@PathVariable long productId,
       @RequestBody BugBatchCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(batchCreateHandler.handle(resolver.resolve(request), productId, body.items()));
@@ -108,6 +112,8 @@ public class BugController {
   @PatchMapping("/bugs/{bugId}")
   @Operation(operationId = "updateBug")
   @RequirePrivilege("bug-edit")
+  @Audit(action = "bug-update", objectType = "bug")
+  @AuditDiff(objectType = "bug")
   public DataEnvelope<BugView> update(@PathVariable long bugId,
       @RequestBody UpdateBugHandler.BugUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(updateHandler.handle(resolver.resolve(request), bugId, body));
@@ -116,6 +122,8 @@ public class BugController {
   @DeleteMapping("/bugs/{bugId}")
   @Operation(operationId = "deleteBug")
   @RequirePrivilege("bug-delete")
+  @Audit(action = "bug-delete", objectType = "bug")
+  @AuditDiff(objectType = "bug")
   public DataEnvelope<Void> delete(@PathVariable long bugId, HttpServletRequest request) {
     deleteHandler.handle(resolver.resolve(request), bugId);
     return DataEnvelope.empty();
@@ -124,6 +132,8 @@ public class BugController {
   @PostMapping("/bugs/{bugId}/confirm")
   @Operation(operationId = "confirmBug")
   @RequirePrivilege("bug-confirm")
+  @Audit(action = "bug-confirm", objectType = "bug")
+  @AuditDiff(objectType = "bug")
   public DataEnvelope<BugView> confirm(@PathVariable long bugId,
       @RequestBody ConfirmBugHandler.BugConfirmRequest body, HttpServletRequest request) {
     return DataEnvelope.of(confirmHandler.handle(resolver.resolve(request), bugId, body));
@@ -132,6 +142,8 @@ public class BugController {
   @PostMapping("/bugs/{bugId}/resolve")
   @Operation(operationId = "resolveBug")
   @RequirePrivilege("bug-resolve")
+  @Audit(action = "bug-resolve", objectType = "bug")
+  @AuditDiff(objectType = "bug")
   public DataEnvelope<BugView> resolve(@PathVariable long bugId,
       @RequestBody ResolveBugHandler.BugResolveRequest body, HttpServletRequest request) {
     return DataEnvelope.of(resolveHandler.handle(resolver.resolve(request), bugId, body));
@@ -140,6 +152,8 @@ public class BugController {
   @PostMapping("/bugs/{bugId}/activate")
   @Operation(operationId = "activateBug")
   @RequirePrivilege("bug-activate")
+  @Audit(action = "bug-activate", objectType = "bug")
+  @AuditDiff(objectType = "bug")
   public DataEnvelope<BugView> activate(@PathVariable long bugId,
       @RequestBody ActivateBugHandler.BugActivateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(activateHandler.handle(resolver.resolve(request), bugId, body));
@@ -148,6 +162,8 @@ public class BugController {
   @PostMapping("/bugs/{bugId}/close")
   @Operation(operationId = "closeBug")
   @RequirePrivilege("bug-close")
+  @Audit(action = "bug-close", objectType = "bug")
+  @AuditDiff(objectType = "bug")
   public DataEnvelope<BugView> close(@PathVariable long bugId, @RequestBody(required = false) CommentRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(closeHandler.handle(resolver.resolve(request), bugId, body));
@@ -156,6 +172,8 @@ public class BugController {
   @PostMapping("/bugs/{bugId}/assign")
   @Operation(operationId = "assignBug")
   @RequirePrivilege("bug-assign")
+  @Audit(action = "bug-assign", objectType = "bug")
+  @AuditDiff(objectType = "bug")
   public DataEnvelope<BugView> assign(@PathVariable long bugId,
       @RequestBody AssignBugHandler.BugAssignRequest body, HttpServletRequest request) {
     return DataEnvelope.of(assignHandler.handle(resolver.resolve(request), bugId, body));
@@ -163,6 +181,7 @@ public class BugController {
 
   @PostMapping("/bugs/batch")
   @Operation(operationId = "batchOperateBugs")
+  @Audit(action = "batch-operation", objectType = "bug")
   public DataEnvelope<BatchActionResult> batch(@RequestBody BatchActionRequest body, HttpServletRequest request) {
     return DataEnvelope.of(batchHandler.handle(resolver.resolve(request), body));
   }

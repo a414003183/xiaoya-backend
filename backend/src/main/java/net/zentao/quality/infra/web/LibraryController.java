@@ -2,6 +2,8 @@ package net.zentao.quality.infra.web;
 
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.DataEnvelope;
@@ -43,6 +45,7 @@ public class LibraryController {
   @PostMapping("/libraries")
   @Operation(operationId = "createLibrary")
   @RequirePrivilege("library-create")
+  @Audit(action = "library-create", objectType = "library")
   public DataEnvelope<SuiteView> create(@RequestBody SuiteHandlers.LibraryCreateRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(handlers.createLibrary(resolver.resolve(request), body));
@@ -58,6 +61,8 @@ public class LibraryController {
   @PatchMapping("/libraries/{libraryId}")
   @Operation(operationId = "updateLibrary")
   @RequirePrivilege("library-edit")
+  @Audit(action = "library-update", objectType = "library")
+  @AuditDiff(objectType = "library")
   public DataEnvelope<SuiteView> update(@PathVariable long libraryId,
       @RequestBody SuiteHandlers.LibraryUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.updateLibrary(resolver.resolve(request), libraryId, body));
@@ -66,6 +71,8 @@ public class LibraryController {
   @DeleteMapping("/libraries/{libraryId}")
   @Operation(operationId = "deleteLibrary")
   @RequirePrivilege("library-delete")
+  @Audit(action = "library-delete", objectType = "library")
+  @AuditDiff(objectType = "library")
   public DataEnvelope<Void> delete(@PathVariable long libraryId, HttpServletRequest request) {
     handlers.deleteLibrary(resolver.resolve(request), libraryId);
     return DataEnvelope.empty();

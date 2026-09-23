@@ -19,6 +19,7 @@ import net.zentao.doc.domain.DocVersionRepository;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.search.SearchResultView;
 import net.zentao.platform.session.SessionPrincipal;
 import org.springframework.stereotype.Component;
@@ -118,7 +119,7 @@ public class DocQueryService {
 
   /** 全局搜索（platform 卡 §5.2）：可见库 + 文档 ACL 先于 LIKE，命中 title/keywords/当前发布正文。 */
   public List<SearchResultView> search(String q, int limit, SessionPrincipal principal) {
-    String like = "%" + q + "%";
+    String like = LikePatterns.contains(q);
     QueryCondition injected = scoped(principal, null).and(KEYWORD_SQL, like, like, like);
     QueryWrapper query = QueryWrapper.create().where(injected)
         .orderBy(new QueryColumn("updated_at").desc(), new QueryColumn("id").desc()) // banned-words-ok：MyBatis-Flex 构造器方法名
@@ -134,7 +135,7 @@ public class DocQueryService {
     Filters filters = Filters.parse(params, registry);
     QueryCondition injected = scoped(principal, extra);
     if (filters.q() != null) {
-      String like = "%" + filters.q() + "%";
+      String like = LikePatterns.contains(filters.q());
       injected = injected.and(KEYWORD_SQL, like, like, like);
     }
     QueryWrapper query = FilterPredicate.compile(filters, COLUMNS::get, specialOf(principal), injected);
@@ -146,8 +147,7 @@ public class DocQueryService {
     }
     List<Doc> docs = repository.queryPage(query, filters.offset(), filters.limit());
     List<DocView> items = summaryViews(docs);
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, COLUMNS::get, specialOf(principal), injected);
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), COLUMNS::get, specialOf(principal), injected);
     return new DocList(items, repository.countByQuery(countQuery));
   }
 

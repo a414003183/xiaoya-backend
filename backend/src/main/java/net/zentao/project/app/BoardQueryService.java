@@ -8,9 +8,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.rbac.DataScope;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.project.domain.Board;
@@ -96,9 +98,8 @@ public class BoardQueryService {
         .stream()
         .map(space -> BoardSpaceHandlers.BoardSpaceView.of(space, List.of()))
         .toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
     QueryWrapper countQuery =
-        FilterPredicate.compile(countFilters, SPACE_COLUMNS::get, specialOf(principal), injected);
+        FilterPredicate.compile(filters.forCount(), SPACE_COLUMNS::get, specialOf(principal), injected);
     return new BoardSpaceList(items, spaceRepository.countByQuery(countQuery));
   }
 
@@ -128,27 +129,26 @@ public class BoardQueryService {
         .stream()
         .map(CardHandlers.CardView::of)
         .toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
     QueryWrapper countQuery =
-        FilterPredicate.compile(countFilters, CARD_COLUMNS::get, specialOf(principal), injected);
+        FilterPredicate.compile(filters.forCount(), CARD_COLUMNS::get, specialOf(principal), injected);
     return new CardList(items, cardRepository.countByQuery(countQuery));
   }
 
   /** 空间可见性闸门（BoardSpaceHandlers/BoardHandlers 共用）：不存在 → 40401，不可见 → 40302。 */
   public BoardSpace requireVisibleSpace(SessionPrincipal principal, long spaceId) {
-    BoardSpace space = spaceRepository.findActiveById(spaceId).orElseThrow(() -> ApiException.notFound("看板空间"));
+    BoardSpace space = spaceRepository.findActiveById(spaceId).orElseThrow(() -> ApiException.notFound("entity.boardSpace"));
     if (!BoardVisibility.isVisible(space, viewer(principal))) {
-      throw ApiException.dataForbidden("无权访问该看板空间。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "boardSpace.guard.forbidden");
     }
     return space;
   }
 
   /** 看板可见性闸门（LaneHandlers/CardHandlers 共用）：不存在 → 40401，不可见 → 40302。 */
   public Board requireVisibleBoard(SessionPrincipal principal, long boardId) {
-    Board board = boardRepository.findActiveById(boardId).orElseThrow(() -> ApiException.notFound("看板"));
+    Board board = boardRepository.findActiveById(boardId).orElseThrow(() -> ApiException.notFound("entity.board"));
     BoardSpace space = spaceRepository.findActiveById(board.spaceId()).orElse(null);
     if (!BoardVisibility.isVisible(board, space, viewer(principal))) {
-      throw ApiException.dataForbidden("无权访问该看板。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "board.guard.forbidden");
     }
     return board;
   }
@@ -168,6 +168,6 @@ public class BoardQueryService {
   }
 
   private static QueryCondition keywordCondition(String q) {
-    return q == null || q.isBlank() ? null : new QueryColumn("name").like("%" + q + "%");
+    return q == null || q.isBlank() ? null : new QueryColumn("name").likeRaw(LikePatterns.contains(q));
   }
 }

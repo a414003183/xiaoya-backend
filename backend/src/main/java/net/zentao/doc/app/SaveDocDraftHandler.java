@@ -62,6 +62,6 @@ public class SaveDocDraftHandler {
     // 主表仅更新 updatedBy/At 与 html→markdown 转换；title/status/version 不动（发布才同步标题）
     doc.convertToMarkdown();
     doc.markUpdatedBy(actor.account());
-    return repository.update(doc).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+    return repository.update(doc).orElseThrow(() -> ApiException.lockConflict());
   }
 }

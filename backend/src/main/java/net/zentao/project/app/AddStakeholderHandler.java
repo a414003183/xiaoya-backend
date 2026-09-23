@@ -37,7 +37,7 @@ public class AddStakeholderHandler {
   public record StakeholderCreateRequest(
       @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String account,
       @Schema(requiredMode = Schema.RequiredMode.REQUIRED, allowableValues = {"inside", "outside"}) String type,
-      Boolean isKey, String source) {}
+      Boolean isKey, @jakarta.validation.constraints.Size(max = 30) String source) {}
 
   @Transactional
   public StakeholderView handle(SessionPrincipal actor, String objectType, long objectId,
@@ -47,6 +47,7 @@ public class AddStakeholderHandler {
     String type = command == null ? null : command.type();
     String source = command == null ? null : command.source();
     Map<String, String> errors = new LinkedHashMap<>();
+    // account 的「必填 | 引用存在」else-if 链与 type 取值域是守卫语义（required/notFound/invalid 三码同域）——不注解化。
     if (account == null || account.isBlank()) {
       errors.put("account", "required");
     } else if (!accountApi.missingAccounts(List.of(account)).isEmpty()) {
@@ -54,9 +55,6 @@ public class AddStakeholderHandler {
     }
     if (!TYPES.contains(type)) {
       errors.put("type", "invalid");
-    }
-    if (source != null && source.length() > 30) {
-      errors.put("source", "maxLength");
     }
     if (!errors.isEmpty()) {
       throw ApiException.validation(errors);

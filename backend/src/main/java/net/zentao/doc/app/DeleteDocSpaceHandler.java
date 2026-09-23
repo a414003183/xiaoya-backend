@@ -5,6 +5,7 @@ import java.util.List;
 import net.zentao.doc.domain.DocSpace;
 import net.zentao.doc.domain.DocSpaceRepository;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +26,7 @@ public class DeleteDocSpaceHandler {
   public void handle(SessionPrincipal actor, long spaceId) {
     DocSpace space = access.requireSpace(actor, spaceId);
     if (repository.countLiveDocsBySpaces(List.of(spaceId)).getOrDefault(spaceId, 0L) > 0) {
-      throw ApiException.guardNotSatisfied("文档库非空，请先清空库内文档。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "docSpace.guard.notEmpty");
     }
     repository.softDelete(space.id(), actor.account(), Instant.now());
   }

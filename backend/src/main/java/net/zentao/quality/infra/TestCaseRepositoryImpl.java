@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.quality.domain.TestCase;
 import net.zentao.quality.domain.TestCaseRepository;
 import org.springframework.stereotype.Component;
@@ -125,7 +126,7 @@ public class TestCaseRepositoryImpl implements TestCaseRepository {
 
   @Override
   public void softDelete(long id, String actor, Instant at) {
-    Db.updateByCondition("test_case", Row.of("deleted_at", at).set("updated_by", actor),
+    SoftDeletes.apply("test_case", Row.of("deleted_at", at).set("updated_by", actor),
         new QueryColumn("id").eq(id).and(DELETED_AT.isNull()));
   }
 

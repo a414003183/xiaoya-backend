@@ -1,5 +1,6 @@
 package net.zentao.task.api;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import net.zentao.task.domain.Task;
@@ -8,7 +9,7 @@ import net.zentao.task.domain.Task;
 public record TaskSummaryView(
     long id,
     String title,
-    String status,
+    @Schema(allowableValues = {"cancel", "closed", "doing", "done", "pause", "wait"}) String status,
     int priority,
     String assignee,
     BigDecimal estimateHours,

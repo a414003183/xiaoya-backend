@@ -23,7 +23,7 @@ class ActuatorHealthTest extends ApiTestSupport {
   }
 
   @Test
-  @DisplayName("匿名访问非探活端点一律 401（ActuatorGuardFilter 先于暴露面判定，未暴露的也不给探测）")
+  @DisplayName("匿名访问非探活端点一律 401（SurfaceGuardFilter 先于暴露面判定，未暴露的也不给探测）")
   void anonymousNonHealthIsUnauthorized() throws Exception {
     assertEquals(401, send("GET", "/actuator/info", null, null).statusCode());
     assertEquals(401, send("GET", "/actuator/env", null, null).statusCode());

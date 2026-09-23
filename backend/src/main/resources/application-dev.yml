@@ -1,0 +1,10 @@
+# 开发 profile（T73/OPS-18）：H2 内存库调试态额外开 H2 Web Console——`--spring.profiles.active=dev`
+# 启动后访问 /h2-console（JDBC URL 填 application.yml 的 h2 内存库 URL，用户 sa、空口令）。
+# 只在 dev 开：console 能直连库执行任意 SQL，生产/prod 永不开（application-prod.yml 显式关闭）。
+spring:
+  h2:
+    console:
+      enabled: true
+      # 不允许别的机器连进来开 console（只许本机浏览器）
+      settings:
+        web-allow-others: false

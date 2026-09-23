@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 
 /**
  * 把解析后的 {@link Filters} 编译为 mybatis-flex 查询条件（01 §2.2：解析纯函数 → 编译 QueryWrapper）。
@@ -102,6 +103,6 @@ public final class FilterPredicate {
     }
     return specialOf
         .apply(value)
-        .orElseThrow(() -> ApiException.badRequest("无法解析的特殊量：" + value));
+        .orElseThrow(() -> ApiException.keyed(ErrorCode.BAD_REQUEST, "filters.special.unparsable", value));
   }
 }

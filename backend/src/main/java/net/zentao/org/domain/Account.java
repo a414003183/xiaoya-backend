@@ -11,7 +11,6 @@ public class Account {
   private String passwordHash;
   private String realName;
   private String nickname;
-  private String role;
   private Long departmentId;
   private String email;
   private String mobile;
@@ -32,7 +31,7 @@ public class Account {
   private Instant deletedAt;
   private int lockVersion;
 
-  public Account(long id, String account, String passwordHash, String realName, String nickname, String role,
+  public Account(long id, String account, String passwordHash, String realName, String nickname,
       Long departmentId, String email, String mobile, String phone, String gender, LocalDate birthday,
       LocalDate joinedAt, Long avatarFileId, String status, boolean mustChangePassword, int fails, Instant lockedAt,
       Instant lastActiveAt, String createdBy, Instant createdAt, String updatedBy, Instant updatedAt,
@@ -42,7 +41,6 @@ public class Account {
     this.passwordHash = passwordHash;
     this.realName = realName;
     this.nickname = nickname;
-    this.role = role;
     this.departmentId = departmentId;
     this.email = email;
     this.mobile = mobile;
@@ -99,16 +97,13 @@ public class Account {
   }
 
   /** 更新资料（org 卡 §3.1 PATCH 白名单字段；null 不改）。 */
-  public void updateProfile(String realName, String nickname, String role, Long departmentId, String email,
+  public void updateProfile(String realName, String nickname, Long departmentId, String email,
       String mobile, String phone, String gender, LocalDate birthday, LocalDate joinedAt, Long avatarFileId) {
     if (realName != null) {
       this.realName = realName;
     }
     if (nickname != null) {
       this.nickname = nickname;
-    }
-    if (role != null) {
-      this.role = role;
     }
     if (departmentId != null) {
       this.departmentId = departmentId;
@@ -142,10 +137,20 @@ public class Account {
     this.updatedAt = Instant.now();
   }
 
-  /** 改密成功即清首登强制改密标记（06 A7-5；管理员重置与本人改密共用此路径）。 */
+  /** 本人改密成功即清首登强制改密标记（06 A7-5）。 */
   public void changePassword(String passwordHash) {
     this.passwordHash = passwordHash;
     this.mustChangePassword = false;
+  }
+
+  /**
+   * 管理员重置：换哈希并**置**首登强制改密标记（T62 SEC-11）——重置出来的是管理员已知的一次性口令，
+   * 用户下次登录必须先改掉才算交接完成（旧实现走 {@link #changePassword} 顺手清了标记，
+   * 等于管理员永远握着对方正在用的口令）。
+   */
+  public void resetPassword(String passwordHash) {
+    this.passwordHash = passwordHash;
+    this.mustChangePassword = true;
   }
 
   public long id() {
@@ -166,10 +171,6 @@ public class Account {
 
   public String nickname() {
     return nickname;
-  }
-
-  public String role() {
-    return role;
   }
 
   public Long departmentId() {

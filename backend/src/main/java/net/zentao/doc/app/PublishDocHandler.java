@@ -37,7 +37,7 @@ public class PublishDocHandler {
   public Doc handle(SessionPrincipal actor, long docId, String comment) {
     Doc doc = access.requireEditableDoc(actor, docId);
     DocVersion working = versionRepository.findByDocAndVersion(docId, DocVersion.DRAFT_VERSION)
-        .orElseThrow(() -> ApiException.notFound("文档正文"));
+        .orElseThrow(() -> ApiException.notFound("entity.docContent"));
     DocVersion current = doc.version() > 0
         ? versionRepository.findByDocAndVersion(docId, doc.version()).orElse(null)
         : null;
@@ -50,10 +50,10 @@ public class PublishDocHandler {
       versionRepository.insert(DocVersion.snapshot(docId, newVersion, working.title(), working.content(),
           working.files(), actor.account(), Instant.now()));
     } catch (DuplicateKeyException e) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     doc.publishedAs(newVersion, working.title());
     doc.markUpdatedBy(actor.account());
-    return repository.update(doc).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+    return repository.update(doc).orElseThrow(() -> ApiException.lockConflict());
   }
 }

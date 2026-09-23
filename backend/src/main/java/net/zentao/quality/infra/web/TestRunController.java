@@ -3,6 +3,8 @@ package net.zentao.quality.infra.web;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import net.zentao.platform.activity.ActivityQueryService;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.CommentRequest;
@@ -56,6 +58,7 @@ public class TestRunController {
   @PostMapping("/products/{productId}/test-runs")
   @Operation(operationId = "createTestRun")
   @RequirePrivilege("testrun-create")
+  @Audit(action = "testRun-create", objectType = "testRun")
   public DataEnvelope<TestRunView> create(@PathVariable long productId,
       @RequestBody TestRunHandlers.TestRunCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.create(resolver.resolve(request), productId, body));
@@ -71,6 +74,8 @@ public class TestRunController {
   @PatchMapping("/test-runs/{testRunId}")
   @Operation(operationId = "updateTestRun")
   @RequirePrivilege("testrun-edit")
+  @Audit(action = "testRun-update", objectType = "testRun")
+  @AuditDiff(objectType = "testRun")
   public DataEnvelope<TestRunView> update(@PathVariable long testRunId,
       @RequestBody TestRunHandlers.TestRunUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.update(resolver.resolve(request), testRunId, body));
@@ -79,6 +84,8 @@ public class TestRunController {
   @DeleteMapping("/test-runs/{testRunId}")
   @Operation(operationId = "deleteTestRun")
   @RequirePrivilege("testrun-delete")
+  @Audit(action = "testRun-delete", objectType = "testRun")
+  @AuditDiff(objectType = "testRun")
   public DataEnvelope<Void> delete(@PathVariable long testRunId, HttpServletRequest request) {
     handlers.delete(resolver.resolve(request), testRunId);
     return DataEnvelope.empty();
@@ -87,6 +94,8 @@ public class TestRunController {
   @PostMapping("/test-runs/{testRunId}/start")
   @Operation(operationId = "startTestRun")
   @RequirePrivilege("testrun-start")
+  @Audit(action = "testRun-start", objectType = "testRun")
+  @AuditDiff(objectType = "testRun")
   public DataEnvelope<TestRunView> start(@PathVariable long testRunId, HttpServletRequest request) {
     return DataEnvelope.of(handlers.start(resolver.resolve(request), testRunId));
   }
@@ -94,6 +103,8 @@ public class TestRunController {
   @PostMapping("/test-runs/{testRunId}/block")
   @Operation(operationId = "blockTestRun")
   @RequirePrivilege("testrun-block")
+  @Audit(action = "testRun-block", objectType = "testRun")
+  @AuditDiff(objectType = "testRun")
   public DataEnvelope<TestRunView> block(@PathVariable long testRunId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.block(resolver.resolve(request), testRunId, body));
@@ -102,6 +113,8 @@ public class TestRunController {
   @PostMapping("/test-runs/{testRunId}/activate")
   @Operation(operationId = "activateTestRun")
   @RequirePrivilege("testrun-activate")
+  @Audit(action = "testRun-activate", objectType = "testRun")
+  @AuditDiff(objectType = "testRun")
   public DataEnvelope<TestRunView> activate(@PathVariable long testRunId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.activate(resolver.resolve(request), testRunId, body));
@@ -110,6 +123,8 @@ public class TestRunController {
   @PostMapping("/test-runs/{testRunId}/close")
   @Operation(operationId = "closeTestRun")
   @RequirePrivilege("testrun-close")
+  @Audit(action = "testRun-close", objectType = "testRun")
+  @AuditDiff(objectType = "testRun")
   public DataEnvelope<TestRunView> close(@PathVariable long testRunId,
       @RequestBody TestRunHandlers.TestRunCloseRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.close(resolver.resolve(request), testRunId, body));
@@ -122,9 +137,11 @@ public class TestRunController {
     return DataEnvelope.of(queryService.runCases(resolver.resolve(request), testRunId, request.getParameterMap()));
   }
 
+  /** 关联用例：改的是 test_run_case 关联行，测试单自身关键字段不变 → 只记「发生了」，不采 diff。 */
   @PostMapping("/test-runs/{testRunId}/cases")
   @Operation(operationId = "linkTestRunCases")
   @RequirePrivilege("testrun-link-case")
+  @Audit(action = "testRun-link-cases", objectType = "testRun")
   public DataEnvelope<RunCaseList> linkCases(@PathVariable long testRunId,
       @RequestBody TestRunHandlers.TestRunLinkCasesRequest body, HttpServletRequest request) {
     handlers.linkCases(resolver.resolve(request), testRunId, body);
@@ -134,23 +151,29 @@ public class TestRunController {
   @PostMapping("/test-runs/{testRunId}/unlink-cases")
   @Operation(operationId = "unlinkTestRunCases")
   @RequirePrivilege("testrun-link-case")
+  @Audit(action = "testRun-unlink-cases", objectType = "testRun")
   public DataEnvelope<RunCaseList> unlinkCases(@PathVariable long testRunId,
       @RequestBody SuiteLinkCasesRequest body, HttpServletRequest request) {
     handlers.unlinkCases(resolver.resolve(request), testRunId, body.caseIds());
     return DataEnvelope.of(queryService.runCases(resolver.resolve(request), testRunId, request.getParameterMap()));
   }
 
+  /** record-result 是 self 迁移：结果落在关联行上，测试单自身字段不变，diff 通常为空。 */
   @PostMapping("/test-runs/{testRunId}/cases/{caseId}/result")
   @Operation(operationId = "recordTestRunResult")
   @RequirePrivilege("testrun-record-result")
+  @Audit(action = "testRun-record-result", objectType = "testRun")
+  @AuditDiff(objectType = "testRun")
   public DataEnvelope<ResultView> recordResult(@PathVariable long testRunId, @PathVariable long caseId,
       @RequestBody RecordResultHandler.RecordResultRequest body, HttpServletRequest request) {
     return DataEnvelope.of(recordHandler.handle(resolver.resolve(request), testRunId, caseId, body));
   }
 
+  /** 指派执行人：同样是关联行上的字段（对象自身不变）→ 只记「发生了」。 */
   @PostMapping("/test-runs/{testRunId}/cases/{caseId}/assign")
   @Operation(operationId = "assignTestRunCase")
   @RequirePrivilege("testrun-assign-case")
+  @Audit(action = "testRun-assign-case", objectType = "testRun")
   public DataEnvelope<ResultView> assignCase(@PathVariable long testRunId, @PathVariable long caseId,
       @RequestBody TestRunHandlers.AssignRunCaseRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.assignCase(resolver.resolve(request), testRunId, caseId, body));

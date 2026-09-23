@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
+import net.zentao.platform.i18n.MessageResolver;
 import net.zentao.platform.rbac.PrivilegeChecker;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.workspace.api.TodoBatchResult;
@@ -23,12 +25,15 @@ public class BatchTodoHandler {
   private final CreateTodoHandler createHandler;
   private final TodoActionHandler actionHandler;
   private final PrivilegeChecker checker;
+  private final MessageResolver messages;
 
   public BatchTodoHandler(CreateTodoHandler createHandler, TodoActionHandler actionHandler,
-      PrivilegeChecker checker) {
+      PrivilegeChecker checker,
+      MessageResolver messages) {
     this.createHandler = createHandler;
     this.actionHandler = actionHandler;
     this.checker = checker;
+    this.messages = messages;
   }
 
   public record TodoBatchRequest(
@@ -46,17 +51,17 @@ public class BatchTodoHandler {
       throw ApiException.validation(Map.of("items", "required"));
     }
     if (items.size() > MAX_ITEMS) {
-      throw ApiException.badRequest("批量创建最多 " + MAX_ITEMS + " 条。");
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "todo.batch.tooMany", MAX_ITEMS);
     }
     if (!checker.hasPrivilege(actor, "todo-create")) {
-      throw ApiException.forbidden("无权限：todo-create");
+      throw ApiException.keyed(ErrorCode.FORBIDDEN, "error.privilege.missing", "todo-create");
     }
     List<TodoBatchResult.Item> results = new ArrayList<>();
     for (int index = 0; index < items.size(); index++) {
       try {
         results.add(TodoBatchResult.Item.created(index, createHandler.handle(actor, items.get(index)).id()));
       } catch (ApiException e) {
-        results.add(TodoBatchResult.Item.failed(index, e.errorCode().code() + ":" + e.getMessage()));
+        results.add(TodoBatchResult.Item.failed(index, e.errorCode().code() + ":" + messages.forRequest(e)));
       }
     }
     return new TodoBatchResult(results);
@@ -76,10 +81,10 @@ public class BatchTodoHandler {
       default -> null;
     };
     if (code == null) {
-      throw ApiException.badRequest("不支持的批量动作：" + action);
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "batch.action.unsupported", action);
     }
     if (!checker.hasPrivilege(actor, code)) {
-      throw ApiException.forbidden("无权限：" + code);
+      throw ApiException.keyed(ErrorCode.FORBIDDEN, "error.privilege.missing", code);
     }
     String comment = text(body.params(), "comment");
     String assignee = text(body.params(), "assignee");
@@ -95,7 +100,7 @@ public class BatchTodoHandler {
         }
         results.add(TodoBatchResult.Item.acted(id));
       } catch (ApiException e) {
-        results.add(TodoBatchResult.Item.actionFailed(id, e.errorCode().code() + ":" + e.getMessage()));
+        results.add(TodoBatchResult.Item.actionFailed(id, e.errorCode().code() + ":" + messages.forRequest(e)));
       }
     }
     return new TodoBatchResult(results);

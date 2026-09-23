@@ -35,6 +35,12 @@ public class LangItemRepository {
     return mapper.selectListByCondition(LANG.eq(lang));
   }
 
+  /** 删单条覆盖（T21：Excel 整行留空 = 恢复该键的内建默认）。 */
+  public int deleteItem(String lang, String domain, String section, String itemKey) {
+    return mapper.deleteByCondition(
+        LANG.eq(lang).and(DOMAIN.eq(domain)).and(SECTION.eq(section)).and(ITEM_KEY.eq(itemKey)));
+  }
+
   public void upsert(String lang, String domain, String section, Map<String, String> items) {
     for (Map.Entry<String, String> entry : items.entrySet()) {
       LangItemPO existing = mapper.selectOneByCondition(LANG.eq(lang)

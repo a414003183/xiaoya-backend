@@ -12,6 +12,8 @@ import java.util.Map;
 import java.util.Optional;
 import net.zentao.doc.domain.Doc;
 import net.zentao.doc.domain.DocRepository;
+import net.zentao.platform.filters.LikePatterns;
+import net.zentao.platform.persistence.SoftDeletes;
 import org.springframework.stereotype.Component;
 
 /** 文档仓储实现（infra：PO ↔ 领域对象；editors/readers/notify_accounts 为 JSON 文本列）。 */
@@ -78,20 +80,20 @@ public class DocRepositoryImpl implements DocRepository {
 
   @Override
   public void softDelete(long id, String actor, Instant at) {
-    Db.updateByCondition("doc", Row.of("deleted_at", at).set("updated_by", actor),
+    SoftDeletes.apply("doc", Row.of("deleted_at", at).set("updated_by", actor),
         new QueryColumn("id").eq(id).and(DELETED_AT.isNull()));
   }
 
   @Override
   public int softDeleteSubtree(String pathPrefix, String actor, Instant at) {
-    return Db.updateByCondition("doc", Row.of("deleted_at", at).set("updated_by", actor),
-        new QueryColumn("path").like(pathPrefix + "%").and(DELETED_AT.isNull()));
+    return SoftDeletes.apply("doc", Row.of("deleted_at", at).set("updated_by", actor),
+        new QueryColumn("path").likeLeft(pathPrefix).and(DELETED_AT.isNull()));
   }
 
   @Override
   public void replacePathPrefix(String oldPrefix, String newPrefix) {
     // ponytail: 子树逐行回写（章节树规模有界）；升级路径 = 单条 UPDATE ... SET path = CONCAT(?, SUBSTRING(path, ?))
-    List<DocPO> subtree = mapper.selectListByCondition(PATH.like(oldPrefix + "%").and(DELETED_AT.isNull()));
+    List<DocPO> subtree = mapper.selectListByCondition(PATH.likeLeft(oldPrefix).and(DELETED_AT.isNull()));
     for (DocPO row : subtree) {
       updatePath(row.getId(), newPrefix + row.getPath().substring(oldPrefix.length()));
     }
@@ -99,7 +101,7 @@ public class DocRepositoryImpl implements DocRepository {
 
   @Override
   public boolean existsInSubtree(long rootId, String rootPath, long candidateId) {
-    QueryCondition inSubtree = new QueryColumn("id").eq(rootId).or(PATH.like(rootPath + "%"));
+    QueryCondition inSubtree = new QueryColumn("id").eq(rootId).or(PATH.likeLeft(rootPath));
     return mapper.selectCountByQuery(QueryWrapper.create()
         .where(new QueryColumn("id").eq(candidateId).and(inSubtree).and(DELETED_AT.isNull()))) > 0;
   }

@@ -49,12 +49,13 @@ class AuditLogTest extends ApiTestSupport {
 
     Map<String, Object> createRow = singleRow(trace(created));
     assertEquals("admin", createRow.get("account"));
-    assertEquals("post /api/v1/products", createRow.get("action"));
+    // T10 起产品写端点带 @Audit 声明动作名（此前记的是「动词 + 路由模板」的推导值）
+    assertEquals("product-create", createRow.get("action"));
 
     Map<String, Object> updateRow = singleRow(trace(renamed));
     assertEquals("admin", updateRow.get("account"));
-    assertEquals("patch /api/v1/products/{productId}", updateRow.get("action"));
-    assertEquals("product", updateRow.get("object_type"), "对象类型应由路由变量 {productId} 推导");
+    assertEquals("product-update", updateRow.get("action"));
+    assertEquals("product", updateRow.get("object_type"), "对象类型取 @Audit 声明（此前由路由变量 {productId} 推导）");
     assertEquals(productId, ((Number) updateRow.get("object_id")).longValue());
   }
 

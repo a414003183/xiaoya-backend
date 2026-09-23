@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import net.zentao.org.api.AccountApi;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.workflow.WorkflowEngine;
 import net.zentao.project.api.ExecutionApi;
@@ -221,7 +222,7 @@ public class TaskActionHandler {
   private void fire(SessionPrincipal actor, Task task, String action, String comment) {
     engine.fire(new TaskWorkflowTargets.TaskTarget(task, actor.account()), action, comment);
     task.markUpdatedBy(actor.account());
-    repository.update(task).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+    repository.update(task).orElseThrow(() -> ApiException.lockConflict());
   }
 
   /** 动作收尾：父子联动 + 需求 stage 联动（start/finish/activate）+ 返回最新视图。 */
@@ -248,7 +249,7 @@ public class TaskActionHandler {
   /** 父任务只允许 edit/assign/pause/resume/cancel/close/activate 与建子任务（task 卡 §4/§8 → 42202）。 */
   private static void requireNotParent(Task task, String action) {
     if (task.isParent()) {
-      throw ApiException.stateActionNotAllowed("父任务不支持该动作：" + action);
+      throw ApiException.keyed(ErrorCode.STATE_ACTION_NOT_ALLOWED, "task.state.parentActionDenied", action);
     }
   }
 

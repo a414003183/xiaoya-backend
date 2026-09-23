@@ -36,10 +36,10 @@ public class UpdateTodoHandler {
 
   @Transactional
   public TodoView handle(SessionPrincipal actor, long todoId, TodoUpdateRequest command) {
-    Todo todo = repository.findActiveById(todoId).orElseThrow(() -> ApiException.notFound("待办"));
+    Todo todo = repository.findActiveById(todoId).orElseThrow(() -> ApiException.notFound("entity.todo"));
     TodoAccess.requireWritable(actor.account(), todo, dataScope.isSuperAdmin(actor));
     if (command.lockVersion() == null || command.lockVersion() != todo.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     TodoFields.validateUpdate(command.title(), command.type(), command.objectId(), command.priority(),
         command.beginTime(), command.endTime(), todo);
@@ -54,7 +54,7 @@ public class UpdateTodoHandler {
         command.isPrivate());
     todo.markUpdatedBy(actor.account());
     Todo saved = repository.update(todo)
-        .orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+        .orElseThrow(() -> ApiException.lockConflict());
     return TodoView.of(saved, titleResolver.resolve(saved));
   }
 }

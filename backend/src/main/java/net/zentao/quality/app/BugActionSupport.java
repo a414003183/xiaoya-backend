@@ -2,6 +2,7 @@ package net.zentao.quality.app;
 
 import java.util.function.Consumer;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.workflow.WorkflowEngine;
 import net.zentao.platform.workflow.WorkflowTarget;
@@ -22,7 +23,7 @@ final class BugActionSupport {
   static Bug require(SessionPrincipal actor, BugRepository repository, ProductApi productApi, long bugId) {
     Bug bug = repository.findActiveById(bugId).orElseThrow(() -> ApiException.notFound("Bug"));
     if (!productApi.canAccess(actor, bug.productId())) {
-      throw ApiException.dataForbidden("无权访问该 Bug。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "bug.guard.forbidden");
     }
     return bug;
   }
@@ -42,7 +43,7 @@ final class BugActionSupport {
   }
 
   static Bug save(BugRepository repository, Bug bug) {
-    return repository.update(bug).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+    return repository.update(bug).orElseThrow(() -> ApiException.lockConflict());
   }
 
   /** workflow 作用对象适配（聚合不实现 platform 接口，actor 由 app 层注入）。 */

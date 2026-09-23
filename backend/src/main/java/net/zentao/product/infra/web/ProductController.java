@@ -3,6 +3,8 @@ package net.zentao.product.infra.web;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import net.zentao.platform.activity.ActivityQueryService;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.session.SessionResolver;
@@ -69,6 +71,7 @@ public class ProductController {
   @PostMapping("/products")
   @Operation(operationId = "createProduct")
   @RequirePrivilege("product-create")
+  @Audit(action = "product-create", objectType = "product")
   public DataEnvelope<ProductView> create(@RequestBody CreateProductHandler.ProductCreateRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(ProductView.of(createHandler.handle(resolver.resolve(request), body)));
@@ -76,6 +79,7 @@ public class ProductController {
 
   @PostMapping("/products/batch")
   @Operation(operationId = "batchProducts")
+  @Audit(action = "batch-operation", objectType = "product")
   public DataEnvelope<BatchActionResult> batch(@RequestBody BatchActionRequest body, HttpServletRequest request) {
     return DataEnvelope.of(batchHandler.handle(resolver.resolve(request), body));
   }
@@ -91,6 +95,8 @@ public class ProductController {
   @PatchMapping("/products/{productId}")
   @Operation(operationId = "updateProduct")
   @RequirePrivilege("product-edit")
+  @Audit(action = "product-update", objectType = "product")
+  @AuditDiff(objectType = "product")
   public DataEnvelope<ProductView> update(@PathVariable long productId,
       @RequestBody UpdateProductHandler.ProductUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(ProductView.of(updateHandler.handle(resolver.resolve(request), productId, body)));
@@ -99,6 +105,8 @@ public class ProductController {
   @PostMapping("/products/{productId}/close")
   @Operation(operationId = "closeProduct")
   @RequirePrivilege("product-close")
+  @Audit(action = "product-close", objectType = "product")
+  @AuditDiff(objectType = "product")
   public DataEnvelope<ProductView> close(@PathVariable long productId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.close(resolver.resolve(request), productId, comment(body)));
@@ -107,6 +115,8 @@ public class ProductController {
   @PostMapping("/products/{productId}/activate")
   @Operation(operationId = "activateProduct")
   @RequirePrivilege("product-activate")
+  @Audit(action = "product-activate", objectType = "product")
+  @AuditDiff(objectType = "product")
   public DataEnvelope<ProductView> activate(@PathVariable long productId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.activate(resolver.resolve(request), productId, comment(body)));
@@ -115,6 +125,8 @@ public class ProductController {
   @DeleteMapping("/products/{productId}")
   @Operation(operationId = "deleteProduct")
   @RequirePrivilege("product-delete")
+  @Audit(action = "product-delete", objectType = "product")
+  @AuditDiff(objectType = "product")
   public DataEnvelope<Void> delete(@PathVariable long productId, HttpServletRequest request) {
     deleteHandler.handle(resolver.resolve(request), productId);
     return DataEnvelope.empty();

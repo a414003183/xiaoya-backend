@@ -3,7 +3,7 @@ package net.zentao.org.domain;
 import java.util.List;
 import java.util.Optional;
 
-/** 账号仓储接口（domain 层，纯 Java）。groupIds 属 user_group 关联，经组集合方法读写。 */
+/** 账号仓储接口（domain 层，纯 Java）。roleIds 属 user_role 关联，经角色集合方法读写。 */
 public interface AccountRepository {
 
   Optional<Account> findById(long id);
@@ -25,14 +25,28 @@ public interface AccountRepository {
 
   boolean existsByAccountAndDepartment(String account, long departmentId);
 
-  // ── user_group 关联 ──
+  // ── user_role 关联（账号 ↔ 角色，T23）──
 
-  List<Long> groupIdsOf(long accountId);
+  List<Long> roleIdsOf(long accountId);
 
-  void replaceGroups(long accountId, List<Long> groupIds);
+  void replaceRoles(long accountId, List<Long> roleIds);
 
-  /** 批量校验：返回不存在的组 id。 */
-  List<Long> findMissingGroupIds(List<Long> groupIds);
+  /** 批量校验：返回不存在的角色 id。 */
+  List<Long> findMissingRoleIds(List<Long> roleIds);
+
+  /** 角色成员账号 id 集（列表筛选 filters[roleId] 展开用）。 */
+  List<Long> roleMembersOf(long roleId);
+
+  // ── 口令历史（T62 SEC-11：禁用复用）──
+
+  /** 最近 limit 条历史口令哈希（新→旧）；limit ≤ 0 返回空（历史未启用）。 */
+  List<String> recentPasswordHashes(long accountId, int limit);
+
+  /**
+   * 追加一条被替换掉的口令哈希，并把该账号历史裁剪到最新 keep 条（keep ≤ 0 = 不保留，等于关闭）。
+   * 只追加、无 UPDATE 路径，故不走乐观锁协议。
+   */
+  void appendPasswordHistory(long accountId, String passwordHash, String actor, int keep);
 
   /**
    * 组合查询（DSL 编译产物）。ponytail: 参数以 Object 承载（实现层强转），
@@ -42,6 +56,4 @@ public interface AccountRepository {
 
   long countByQuery(Object whereWrapper);
 
-  /** 仍在使用该角色的账号数（未删口径；角色字典的 accountCount 与删除守卫共用，org 卡 §3.4）。 */
-  long countByRole(String role);
 }

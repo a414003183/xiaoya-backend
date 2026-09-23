@@ -1,6 +1,7 @@
 package net.zentao.workspace.app;
 
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.workspace.domain.Todo;
 
 /**
@@ -17,7 +18,7 @@ final class TodoAccess {
       return;
     }
     if (todo.isPrivate() && !isParticipant(account, todo)) {
-      throw ApiException.dataForbidden("私有待办仅创建人与负责人可见。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "todo.guard.privateVisibility");
     }
   }
 
@@ -27,7 +28,7 @@ final class TodoAccess {
       return;
     }
     if (!isParticipant(account, todo)) {
-      throw ApiException.dataForbidden("仅待办的创建人或负责人可操作。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "todo.guard.ownerOnly");
     }
   }
 

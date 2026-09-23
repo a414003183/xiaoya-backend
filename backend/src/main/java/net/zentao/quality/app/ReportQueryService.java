@@ -12,6 +12,7 @@ import net.zentao.platform.error.ApiException;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.ProductApi;
 import net.zentao.project.api.ExecutionApi;
@@ -68,8 +69,7 @@ public class ReportQueryService {
     List<ReportView> items = repository.queryPage(query, filters.offset(), filters.limit()).stream()
         .map(ReportView::of)
         .toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, COLUMNS::get, specialOf(principal), injected);
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), COLUMNS::get, specialOf(principal), injected);
     return new ReportList(items, repository.countByQuery(countQuery));
   }
 
@@ -85,6 +85,6 @@ public class ReportQueryService {
     if (q == null || q.isBlank()) {
       return null;
     }
-    return new QueryColumn("title").like("%" + q + "%");
+    return new QueryColumn("title").likeRaw(LikePatterns.contains(q));
   }
 }

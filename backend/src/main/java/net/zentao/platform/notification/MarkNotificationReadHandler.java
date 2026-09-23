@@ -2,6 +2,7 @@ package net.zentao.platform.notification;
 
 import java.time.Instant;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import org.springframework.stereotype.Component;
 
@@ -16,9 +17,9 @@ public class MarkNotificationReadHandler {
   }
 
   public NotificationView markRead(SessionPrincipal principal, long notificationId) {
-    NotificationPO po = repository.findById(notificationId).orElseThrow(() -> ApiException.notFound("通知"));
+    NotificationPO po = repository.findById(notificationId).orElseThrow(() -> ApiException.notFound("entity.notification"));
     if (!principal.account().equals(po.getRecipient())) {
-      throw ApiException.dataForbidden("非本人通知。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "notification.guard.notRecipient");
     }
     if (po.getReadAt() == null) {
       po.setReadAt(Instant.now());

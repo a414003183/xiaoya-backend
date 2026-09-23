@@ -39,7 +39,7 @@ public record StoryView(
     Instant updatedAt,
     String closedBy,
     Instant closedAt,
-    String closedReason,
+    @Schema(allowableValues = {"done", "duplicate", "postponed", "rejected", "willnotfix"}) String closedReason,
     int lockVersion) {
 
   public static StoryView of(Story story) {

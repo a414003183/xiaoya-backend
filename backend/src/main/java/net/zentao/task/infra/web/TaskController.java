@@ -3,6 +3,8 @@ package net.zentao.task.infra.web;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import net.zentao.platform.activity.ActivityQueryService;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.BatchActionRequest;
@@ -75,6 +77,8 @@ public class TaskController {
   @PatchMapping("/tasks/{taskId}")
   @Operation(operationId = "updateTask")
   @RequirePrivilege("task-edit")
+  @Audit(action = "task-update", objectType = "task")
+  @AuditDiff(objectType = "task")
   public DataEnvelope<TaskView> update(@PathVariable long taskId, @RequestBody TaskUpdateRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(updateHandler.handle(resolver.resolve(request), taskId, body));
@@ -83,6 +87,8 @@ public class TaskController {
   @PostMapping("/tasks/{taskId}/start")
   @Operation(operationId = "startTask")
   @RequirePrivilege("task-start")
+  @Audit(action = "task-start", objectType = "task")
+  @AuditDiff(objectType = "task")
   public DataEnvelope<TaskView> start(@PathVariable long taskId,
       @RequestBody(required = false) TaskStartRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.start(resolver.resolve(request), taskId, body));
@@ -91,6 +97,8 @@ public class TaskController {
   @PostMapping("/tasks/{taskId}/finish")
   @Operation(operationId = "finishTask")
   @RequirePrivilege("task-finish")
+  @Audit(action = "task-finish", objectType = "task")
+  @AuditDiff(objectType = "task")
   public DataEnvelope<TaskView> finish(@PathVariable long taskId,
       @RequestBody(required = false) TaskFinishRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.finish(resolver.resolve(request), taskId, body));
@@ -99,6 +107,8 @@ public class TaskController {
   @PostMapping("/tasks/{taskId}/pause")
   @Operation(operationId = "pauseTask")
   @RequirePrivilege("task-pause")
+  @Audit(action = "task-pause", objectType = "task")
+  @AuditDiff(objectType = "task")
   public DataEnvelope<TaskView> pause(@PathVariable long taskId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.pause(resolver.resolve(request), taskId, comment(body)));
@@ -107,6 +117,8 @@ public class TaskController {
   @PostMapping("/tasks/{taskId}/resume")
   @Operation(operationId = "resumeTask")
   @RequirePrivilege("task-resume")
+  @Audit(action = "task-resume", objectType = "task")
+  @AuditDiff(objectType = "task")
   public DataEnvelope<TaskView> resume(@PathVariable long taskId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.resume(resolver.resolve(request), taskId, comment(body)));
@@ -115,6 +127,8 @@ public class TaskController {
   @PostMapping("/tasks/{taskId}/cancel")
   @Operation(operationId = "cancelTask")
   @RequirePrivilege("task-cancel")
+  @Audit(action = "task-cancel", objectType = "task")
+  @AuditDiff(objectType = "task")
   public DataEnvelope<TaskView> cancel(@PathVariable long taskId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.cancel(resolver.resolve(request), taskId, comment(body)));
@@ -123,6 +137,8 @@ public class TaskController {
   @PostMapping("/tasks/{taskId}/close")
   @Operation(operationId = "closeTask")
   @RequirePrivilege("task-close")
+  @Audit(action = "task-close", objectType = "task")
+  @AuditDiff(objectType = "task")
   public DataEnvelope<TaskView> close(@PathVariable long taskId,
       @RequestBody(required = false) TaskCloseRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.close(resolver.resolve(request), taskId, body));
@@ -131,6 +147,8 @@ public class TaskController {
   @PostMapping("/tasks/{taskId}/activate")
   @Operation(operationId = "activateTask")
   @RequirePrivilege("task-activate")
+  @Audit(action = "task-activate", objectType = "task")
+  @AuditDiff(objectType = "task")
   public DataEnvelope<TaskView> activate(@PathVariable long taskId,
       @RequestBody(required = false) TaskActivateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.activate(resolver.resolve(request), taskId, body));
@@ -139,6 +157,8 @@ public class TaskController {
   @PostMapping("/tasks/{taskId}/assign")
   @Operation(operationId = "assignTask")
   @RequirePrivilege("task-assign")
+  @Audit(action = "task-assign", objectType = "task")
+  @AuditDiff(objectType = "task")
   public DataEnvelope<TaskView> assign(@PathVariable long taskId,
       @RequestBody(required = false) TaskAssignRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.assign(resolver.resolve(request), taskId, body));
@@ -147,6 +167,8 @@ public class TaskController {
   @DeleteMapping("/tasks/{taskId}")
   @Operation(operationId = "deleteTask")
   @RequirePrivilege("task-delete")
+  @Audit(action = "task-delete", objectType = "task")
+  @AuditDiff(objectType = "task")
   public DataEnvelope<Void> delete(@PathVariable long taskId, HttpServletRequest request) {
     deleteHandler.handle(resolver.resolve(request), taskId);
     return DataEnvelope.empty();
@@ -154,6 +176,7 @@ public class TaskController {
 
   @PostMapping("/tasks/batch")
   @Operation(operationId = "batchTasks")
+  @Audit(action = "batch-operation", objectType = "task")
   public DataEnvelope<BatchActionResult> batch(@RequestBody BatchActionRequest body, HttpServletRequest request) {
     return DataEnvelope.of(batchHandler.handle(resolver.resolve(request), body));
   }
@@ -169,6 +192,7 @@ public class TaskController {
   @PostMapping("/tasks/{taskId}/efforts")
   @Operation(operationId = "createEffort")
   @RequirePrivilege("task-effort")
+  @Audit(action = "effort-create", objectType = "effort")
   public DataEnvelope<EffortView> createEffort(@PathVariable long taskId,
       @RequestBody RecordEffortHandler.EffortCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(recordEffortHandler.handle(resolver.resolve(request), taskId, body));

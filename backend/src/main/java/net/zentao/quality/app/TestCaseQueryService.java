@@ -9,9 +9,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.search.SearchResultView;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.ProductApi;
@@ -73,9 +75,9 @@ public class TestCaseQueryService {
 
   /** 全局搜索（platform 卡 §5.2）：仅产品用例参与（库用例走库面），可见集先于 LIKE。 */
   public List<SearchResultView> search(String q, int limit, SessionPrincipal principal) {
-    String like = "%" + q + "%";
+    String like = LikePatterns.contains(q);
     QueryCondition injected = new QueryColumn("deleted_at").isNull()
-        .and(new QueryColumn("title").like(like).or(new QueryColumn("keywords").like(like)))
+        .and(new QueryColumn("title").likeRaw(like).or(new QueryColumn("keywords").likeRaw(like)))
         .and(new QueryColumn("product_id").gt(0));
     ProductApi.ProductScope scope = productApi.visibleScope(principal);
     if (!scope.visibleToAll()) {
@@ -116,8 +118,7 @@ public class TestCaseQueryService {
     List<TestCaseView> items = repository.queryPage(query, rest.offset(), rest.limit()).stream()
         .map(TestCaseView::of)
         .toList();
-    Filters countFilters = new Filters(rest.clauses(), List.of(), 1, 1, rest.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, COLUMNS::get, specialOf(principal), injected);
+    QueryWrapper countQuery = FilterPredicate.compile(rest.forCount(), COLUMNS::get, specialOf(principal), injected);
     return new TestCaseList(items, repository.countByQuery(countQuery));
   }
 
@@ -133,7 +134,7 @@ public class TestCaseQueryService {
         continue;
       }
       if (clause.op() != Filters.Op.EQ && clause.op() != Filters.Op.IN) {
-        throw ApiException.badRequest(clause.field() + " 仅支持等值/多选过滤。");
+        throw ApiException.keyed(ErrorCode.BAD_REQUEST, "testCase.filter.opUnsupported", clause.field());
       }
       QueryCondition condition = null;
       for (String value : clause.values()) {
@@ -141,7 +142,7 @@ public class TestCaseQueryService {
         try {
           id = Long.parseLong(value);
         } catch (NumberFormatException e) {
-          throw ApiException.badRequest(clause.field() + " 必须是 id。");
+          throw ApiException.keyed(ErrorCode.BAD_REQUEST, "testCase.filter.idRequired", clause.field());
         }
         QueryCondition matched = new QueryColumn("id").in(QueryWrapper.create()
             .select(new QueryColumn("test_case_id"))
@@ -177,7 +178,7 @@ public class TestCaseQueryService {
     if (q == null || q.isBlank()) {
       return null;
     }
-    String like = "%" + q + "%";
-    return new QueryColumn("title").like(like).or(new QueryColumn("keywords").like(like));
+    String like = LikePatterns.contains(q);
+    return new QueryColumn("title").likeRaw(like).or(new QueryColumn("keywords").likeRaw(like));
   }
 }

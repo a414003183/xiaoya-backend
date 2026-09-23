@@ -1,25 +1,36 @@
 package net.zentao.requirement.infra;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import net.zentao.platform.activity.ObjectVisibilityRegistry;
+import net.zentao.platform.audit.AuditCatalog;
+import net.zentao.platform.audit.AuditCategory;
+import net.zentao.platform.audit.AuditLevel;
+import net.zentao.platform.audit.AuditSnapshotRegistry;
 import net.zentao.platform.meta.MetaRegistry;
 import net.zentao.platform.meta.MetaView;
 import net.zentao.platform.rbac.PrivilegeCatalog;
 import net.zentao.platform.search.SearchRegistry;
 import net.zentao.platform.search.SearchScope;
 import net.zentao.platform.workflow.WorkflowRegistry;
+import net.zentao.product.api.ProductApi;
 import net.zentao.requirement.app.StoryQueryService;
+import net.zentao.requirement.domain.StoryRepository;
 import org.springframework.context.annotation.Configuration;
 
 /**
  * requirement → platform 反向注册（A3 不破坏：域主动调用 platform 注册口）。
- * 权限码：requirement 卡 §5 全集；meta：story（字段 + 动作 + 状态可视化）；搜索 scope：story/epic/requirement。
+ * 权限码：requirement 卡 §5 全集；meta：story（字段 + 动作 + 状态可视化）；搜索 scope：story/epic/requirement；
+ * 对象可见性：story（附件/评论的行级数据权限，platform 卡 §7.2）。
  */
 @Configuration
 public class StoryRegistrar {
 
   public StoryRegistrar(MetaRegistry metaRegistry, PrivilegeCatalog privilegeCatalog,
-      WorkflowRegistry workflowRegistry, SearchRegistry searchRegistry, StoryQueryService queryService) {
+      WorkflowRegistry workflowRegistry, SearchRegistry searchRegistry, StoryQueryService queryService,
+      ObjectVisibilityRegistry visibilityRegistry, StoryRepository storyRepository, ProductApi productApi,
+      AuditCatalog auditCatalog, AuditSnapshotRegistry auditSnapshots) {
     privilegeCatalog.register("story", List.of(
         "story-view", "story-create", "story-edit", "story-submit-review", "story-pass", "story-change",
         "story-close", "story-activate", "story-assign", "story-delete"));
@@ -90,5 +101,56 @@ public class StoryRegistrar {
         (q, limit, principal) -> queryService.search(q, limit, principal, "epic")));
     searchRegistry.register(new SearchScope("requirement", List.of("title", "keywords"),
         (q, limit, principal) -> queryService.search(q, limit, principal, "requirement")));
+
+    // 对象可见性（T49 / platform 卡 §7.2）：需求可见 ⇔ 其产品可见（与列表 DataScope 同口径）；查无此行 = 不可见
+    visibilityRegistry.register("story", (principal, storyId) -> storyRepository.findActiveById(storyId)
+        .map(story -> productApi.canAccess(principal, story.productId()))
+        .orElse(false));
+
+    // ── 审计分级（T10 / VISION 事项 4 第 4 行「业务增删改 → 对象级 + 关键字段 diff」）──
+    // keyFields 只列审计关心的字段（标题/状态/负责人/优先级/归属 id），与下面 provider 的 Map 键同名
+    auditCatalog.register("story-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("story-update", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("title", "priority", "estimateHours", "categoryId", "planId", "parentId"), false);
+    auditCatalog.register("story-delete", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("title", "status", "assignee"), false);
+    // 评审类（submit-review/pass/reject）走审批口径：除 diff 外整快照留档，回答「审的是哪一版」
+    auditCatalog.register("story-submit-review", AuditCategory.APPROVE, AuditLevel.FULL,
+        List.of("status", "reviewers"), true);
+    auditCatalog.register("story-pass", AuditCategory.APPROVE, AuditLevel.FULL, List.of("status"), true);
+    auditCatalog.register("story-reject", AuditCategory.APPROVE, AuditLevel.FULL, List.of("status"), true);
+    auditCatalog.register("story-change", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("story-change-done", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("status", "title", "priority", "estimateHours", "categoryId", "planId", "parentId"), false);
+    auditCatalog.register("story-close", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("status", "closedReason", "duplicateOfId"), false);
+    auditCatalog.register("story-activate", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("status", "closedReason"), false);
+    auditCatalog.register("story-assign", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("assignee"), false);
+
+    // 快照 provider：**每次返回新 Map**（框架留着 before 再取 after 比对，同一个可变 Map 会让 diff 恒为空）；
+    // 用 LinkedHashMap 装（Map.of 不收 null，而 assignee/planId 这类字段可以为空）
+    auditSnapshots.register("story", storyId -> storyRepository.findActiveById(storyId)
+        .map(story -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("title", story.title());
+          snapshot.put("type", story.type());
+          snapshot.put("status", story.status());
+          snapshot.put("stage", story.stage());
+          snapshot.put("priority", story.priority());
+          snapshot.put("estimateHours", story.estimateHours());
+          snapshot.put("source", story.source());
+          snapshot.put("productId", story.productId());
+          snapshot.put("categoryId", story.categoryId());
+          snapshot.put("planId", story.planId());
+          snapshot.put("parentId", story.parentId());
+          snapshot.put("assignee", story.assignee());
+          snapshot.put("reviewers", story.reviewers());
+          snapshot.put("closedReason", story.closedReason());
+          snapshot.put("duplicateOfId", story.duplicateOfId());
+          // 描述/关键词是长正文，不进快照：审计要能定位「改了什么」，不是留全文
+          return snapshot;
+        })
+        .orElse(null));
   }
 }

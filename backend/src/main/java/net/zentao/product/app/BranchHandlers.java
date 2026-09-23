@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.Map;
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.workflow.WorkflowEngine;
 import net.zentao.product.api.BranchView;
@@ -44,7 +45,8 @@ public class BranchHandlers {
   public record BranchCreateRequest(@Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
       String description, Integer sort) {}
 
-  public record BranchUpdateRequest(String name, String description, Integer sort,
+  public record BranchUpdateRequest(String name, @jakarta.validation.constraints.Size(max = 255) String description,
+      Integer sort,
       @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Integer lockVersion) {}
 
   @Transactional
@@ -69,16 +71,13 @@ public class BranchHandlers {
   public BranchView update(SessionPrincipal actor, long branchId, BranchUpdateRequest command) {
     Branch branch = require(actor, branchId);
     if (command.lockVersion() == null || command.lockVersion() != branch.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     if (command.name() != null) {
       validateName(command.name());
       if (repository.existsByNameInProduct(branch.productId(), command.name().trim(), branchId)) {
         throw ApiException.validation(Map.of("name", "duplicate"));
       }
-    }
-    if (command.description() != null && command.description().length() > 255) {
-      throw ApiException.validation(Map.of("description", "maxLength"));
     }
     branch.update(command.name() == null ? null : command.name().trim(), command.description(), command.sort());
     branch.markUpdatedBy(actor.account());
@@ -111,7 +110,7 @@ public class BranchHandlers {
   public void delete(SessionPrincipal actor, long branchId) {
     require(actor, branchId);
     if (storyApi.hasActiveStoriesByBranch(branchId)) {
-      throw ApiException.guardNotSatisfied("分支下存在未删除的需求，不能删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "branch.guard.hasStories");
     }
     repository.softDelete(branchId);
   }
@@ -124,15 +123,16 @@ public class BranchHandlers {
   }
 
   private Branch require(SessionPrincipal actor, long branchId) {
-    Branch branch = repository.findActiveById(branchId).orElseThrow(() -> ApiException.notFound("分支"));
+    Branch branch = repository.findActiveById(branchId).orElseThrow(() -> ApiException.notFound("entity.branch"));
     ProductGuard.requireVisible(productRepository, productApi, actor, branch.productId());
     return branch;
   }
 
   private Branch save(Branch branch) {
-    return repository.update(branch).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+    return repository.update(branch).orElseThrow(() -> ApiException.lockConflict());
   }
 
+  /** name 语义是「trim 后必填/不超 255」且 create/update 共用（update null=不改）——跨字段口径，不注解化。 */
   private static void validateName(String name) {
     if (name == null || name.trim().isEmpty()) {
       throw ApiException.validation(Map.of("name", "required"));

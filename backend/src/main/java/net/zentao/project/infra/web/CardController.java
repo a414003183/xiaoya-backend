@@ -2,6 +2,8 @@ package net.zentao.project.infra.web;
 
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.CommentRequest;
@@ -42,6 +44,8 @@ public class CardController {
   @PatchMapping("/cards/{cardId}")
   @Operation(operationId = "updateCard")
   @RequirePrivilege("board-card-edit")
+  @Audit(action = "card-update", objectType = "card")
+  @AuditDiff(objectType = "card")
   public DataEnvelope<CardView> update(@PathVariable long cardId, @RequestBody CardUpdateRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(handlers.update(resolver.resolve(request), cardId, body));
@@ -50,6 +54,7 @@ public class CardController {
   @PostMapping("/cards/{cardId}/move")
   @Operation(operationId = "moveCard")
   @RequirePrivilege("board-card-edit")
+  @Audit(action = "card-move", objectType = "card")
   public DataEnvelope<CardView> move(@PathVariable long cardId, @RequestBody CardMoveRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(handlers.move(resolver.resolve(request), cardId, body));
@@ -59,6 +64,8 @@ public class CardController {
   @PostMapping("/cards/{cardId}/archive")
   @Operation(operationId = "archiveCard")
   @RequirePrivilege("board-card-edit")
+  @Audit(action = "card-archive", objectType = "card")
+  @AuditDiff(objectType = "card")
   public DataEnvelope<CardView> archive(@PathVariable long cardId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.archive(resolver.resolve(request), cardId));
@@ -68,6 +75,8 @@ public class CardController {
   @PostMapping("/cards/{cardId}/unarchive")
   @Operation(operationId = "unarchiveCard")
   @RequirePrivilege("board-card-edit")
+  @Audit(action = "card-unarchive", objectType = "card")
+  @AuditDiff(objectType = "card")
   public DataEnvelope<CardView> unarchive(@PathVariable long cardId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.unarchive(resolver.resolve(request), cardId));
@@ -76,6 +85,8 @@ public class CardController {
   @DeleteMapping("/cards/{cardId}")
   @Operation(operationId = "deleteCard")
   @RequirePrivilege("board-card-edit")
+  @Audit(action = "card-delete", objectType = "card")
+  @AuditDiff(objectType = "card")
   public DataEnvelope<Void> delete(@PathVariable long cardId, HttpServletRequest request) {
     handlers.delete(resolver.resolve(request), cardId);
     return DataEnvelope.empty();

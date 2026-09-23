@@ -10,6 +10,7 @@ import net.zentao.platform.error.ApiException;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.PlanView;
 import net.zentao.product.api.ProductApi;
@@ -74,8 +75,7 @@ public class PlanQueryService {
     List<PlanView> items = repository.queryPage(query, filters.offset(), filters.limit()).stream()
         .map(PlanView::of)
         .toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, COLUMNS::get, value -> java.util.Optional.empty(),
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), COLUMNS::get, value -> java.util.Optional.empty(),
         injected);
     return new PlanList(items, repository.countByQuery(countQuery));
   }
@@ -92,12 +92,12 @@ public class PlanQueryService {
 
   /** 计划详情（不存在 → 40401；产品不可见 → 40302）。 */
   public PlanView detail(SessionPrincipal principal, long planId) {
-    Plan plan = repository.findActiveById(planId).orElseThrow(() -> ApiException.notFound("计划"));
+    Plan plan = repository.findActiveById(planId).orElseThrow(() -> ApiException.notFound("entity.plan"));
     ProductGuard.requireVisible(productRepository, productApi, principal, plan.productId());
     return PlanView.of(plan);
   }
 
   private QueryCondition keywordCondition(String q) {
-    return q == null || q.isBlank() ? null : new QueryColumn("title").like("%" + q + "%");
+    return q == null || q.isBlank() ? null : new QueryColumn("title").likeRaw(LikePatterns.contains(q));
   }
 }

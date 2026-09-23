@@ -14,6 +14,8 @@ import java.util.Set;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
+import net.zentao.platform.i18n.MessageResolver;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.project.api.ProjectApi;
 import net.zentao.project.api.ProjectView;
@@ -40,11 +42,14 @@ public class WeeklyReportQueryService {
   private final WeeklyReportRepository repository;
   private final TaskApi taskApi;
   private final ProjectApi projectApi;
+  private final MessageResolver messages;
 
-  public WeeklyReportQueryService(WeeklyReportRepository repository, TaskApi taskApi, ProjectApi projectApi) {
+  public WeeklyReportQueryService(WeeklyReportRepository repository, TaskApi taskApi, ProjectApi projectApi,
+      MessageResolver messages) {
     this.repository = repository;
     this.taskApi = taskApi;
     this.projectApi = projectApi;
+    this.messages = messages;
   }
 
   /** 指定周周报（date 传周内任意一天，缺省本周，归一到周一）。 */
@@ -68,7 +73,7 @@ public class WeeklyReportQueryService {
     WeeklyReport saved = repository.upsert(report);
 
     return WeeklyReportView.of(saved, weekSN(project, weekStart), weekEnd, facts.finished(), facts.postponed(),
-        facts.nextWeek());
+        facts.nextWeek(), messages);
   }
 
   /** 历史周快照列表（只读已落库快照，不触发重算）。 */
@@ -78,12 +83,11 @@ public class WeeklyReportQueryService {
     QueryCondition injected = new QueryColumn("project_id").eq(projectId);
     QueryWrapper query = FilterPredicate.compile(filters, COLUMNS::get, value -> java.util.Optional.empty(), injected);
     List<WeeklyReport> rows = repository.queryPage(query, filters.offset(), filters.limit());
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
     QueryWrapper countQuery =
-        FilterPredicate.compile(countFilters, COLUMNS::get, value -> java.util.Optional.empty(), injected);
+        FilterPredicate.compile(filters.forCount(), COLUMNS::get, value -> java.util.Optional.empty(), injected);
     List<WeeklyReportView> items = rows.stream()
         .map(row -> WeeklyReportView.of(row, weekSN(project, row.weekStart()), row.weekStart().plusDays(6),
-            List.of(), List.of(), List.of()))
+            List.of(), List.of(), List.of(), messages))
         .toList();
     return new WeeklyReportList(items, repository.countByQuery(countQuery));
   }

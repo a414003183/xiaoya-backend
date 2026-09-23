@@ -158,10 +158,10 @@ class ProjectActionTest extends net.zentao.ApiTestSupport {
   @DisplayName("close/activate 通知 pm：type=project-closed/activated 且标题为项目名")
   void pmIsNotified() throws Exception {
     String account = "proj-pm-" + System.nanoTime();
-    long groupId = dataId(send("POST", "/api/v1/groups", "{\"name\":\"PM通知组" + System.nanoTime() + "\"}",
+    long groupId = dataId(send("POST", "/api/v1/roles", "{\"name\":\"PM通知组" + System.nanoTime() + "\"}",
         adminCookie));
     send("POST", "/api/v1/accounts", "{\"account\":\"" + account + "\",\"password\":\"secret123\",\"realName\":\""
-        + account + "\",\"groupIds\":[" + groupId + "]}", adminCookie);
+        + account + "\",\"roleIds\":[" + groupId + "]}", adminCookie);
     long id = createProject("通知项目", "\"pm\":\"" + account + "\"");
     act("projects", id, "start", null);
     act("projects", id, "close", "{}");

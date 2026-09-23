@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import net.zentao.org.api.AccountApi;
+import net.zentao.platform.i18n.MessageResolver;
 import net.zentao.platform.meta.FieldDefValidator;
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.error.ApiException;
@@ -28,20 +29,28 @@ public class CreateStoryHandler {
   private final ActivityRecorder activityRecorder;
   private final FieldDefValidator fieldDefValidator;
 
+
+  private final MessageResolver messages;
+
   public CreateStoryHandler(StoryRepository repository, ProductApi productApi, AccountApi accountApi,
       ActivityRecorder activityRecorder,
-      FieldDefValidator fieldDefValidator) {
+      FieldDefValidator fieldDefValidator,
+      MessageResolver messages) {
     this.fieldDefValidator = fieldDefValidator;
     this.repository = repository;
     this.productApi = productApi;
     this.accountApi = accountApi;
     this.activityRecorder = activityRecorder;
+    this.messages = messages;
   }
 
   public record StoryCreateRequest(
       Long branchId, Long categoryId, Long planId, Long parentId,
-      @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String title, String keywords, String type,
-      Integer priority, BigDecimal estimateHours, String source, String description, String assignee,
+      @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String title, String keywords,
+      @Schema(allowableValues = {"epic", "requirement", "story"}) String type,
+      Integer priority, BigDecimal estimateHours,
+      @Schema(allowableValues = {"bug", "customer", "manual", "market", "other"}) String source,
+      String description, String assignee,
       List<String> reviewers, Boolean needNotReview, List<String> notifyAccounts, List<Long> linkedStoryIds,
       Map<String, Object> customFields) {}
 
@@ -132,7 +141,8 @@ public class CreateStoryHandler {
         null,
         null,
         0));
-    activityRecorder.record(actor.account(), "story", story.id(), "created", null, "Bug 转需求");
+    activityRecorder.record(actor.account(), "story", story.id(), "created", null,
+        messages.plain("activity.remark.bugToStory", null));
     return StoryView.of(story);
   }
 }

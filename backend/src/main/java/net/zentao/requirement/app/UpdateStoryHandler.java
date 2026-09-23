@@ -36,7 +36,7 @@ public class UpdateStoryHandler {
   public StoryView handle(SessionPrincipal actor, long storyId, StoryUpdateRequest command) {
     Story story = StoryActionSupport.require(actor, repository, productApi, storyId);
     if (command.lockVersion() == null || command.lockVersion() != story.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     StoryFields.validate(command.title(), command.keywords(), null, command.priority(), command.estimateHours(),
         null, null, null, command.notifyAccounts(), accountApi);

@@ -3,6 +3,7 @@ package net.zentao.platform.meta;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.rbac.PrivilegeChecker;
 import net.zentao.platform.session.SessionPrincipal;
 import org.springframework.stereotype.Component;
@@ -37,7 +38,7 @@ public class SaveSettingsHandler {
       String[] parts = SettingRepository.splitKey(flatKey);
       boolean personal = flatKey.startsWith(PERSONAL_PREFIX);
       if (!personal && !hasManage) {
-        throw ApiException.forbidden("缺少权限码 setting-manage。");
+        throw ApiException.keyed(ErrorCode.FORBIDDEN, "error.privilege.missing", "setting-manage");
       }
       String owner = personal ? principal.account() : SettingRepository.SYSTEM_OWNER;
       String json = entry.getValue() == null ? null : jsonMapper.writeValueAsString(entry.getValue());

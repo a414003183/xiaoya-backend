@@ -3,6 +3,8 @@ package net.zentao.platform.meta;
 import com.mybatisflex.core.query.QueryColumn;
 import java.util.List;
 import java.util.Optional;
+import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import org.springframework.stereotype.Component;
 
 /** setting 表读写（platform 卡 §3.7）。扁平寻址 `<domain>.<key>`：section 参与存储（恒 ''）不参与寻址。 */
@@ -26,7 +28,7 @@ public class SettingRepository {
   public static String[] splitKey(String flatKey) {
     int dot = flatKey.indexOf('.');
     if (dot <= 0 || dot == flatKey.length() - 1) {
-      throw net.zentao.platform.error.ApiException.badRequest("非法设置键：" + flatKey + "（应为 <domain>.<key>）");
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "setting.key.invalid", flatKey);
     }
     return new String[] {flatKey.substring(0, dot), flatKey.substring(dot + 1)};
   }
@@ -34,6 +36,26 @@ public class SettingRepository {
   public Optional<SettingPO> find(String owner, String domain, String key) {
     return Optional.ofNullable(mapper.selectOneByCondition(
         OWNER.eq(owner).and(DOMAIN.eq(domain)).and(SECTION.eq("")).and(ITEM_KEY.eq(key))));
+  }
+
+  /** 系统行查询（参数管理页 T15：这个页面只管 owner=system 的行，个人偏好行不进）。 */
+  public Optional<SettingPO> findSystem(String domain, String key) {
+    return find(SYSTEM_OWNER, domain, key);
+  }
+
+  /** 参数管理页分页（T15）。 */
+  public List<SettingPO> page(com.mybatisflex.core.query.QueryWrapper query, int offset, int limit) {
+    return mapper.selectListByQuery(query.limit(offset, limit));
+  }
+
+  public long countByQuery(com.mybatisflex.core.query.QueryWrapper query) {
+    return mapper.selectCountByQuery(query);
+  }
+
+  /** 删系统行（T15）；返回删除行数（0 = 本来就没有，由调用方裁决 404）。 */
+  public int deleteSystem(String domain, String key) {
+    return mapper.deleteByCondition(
+        OWNER.eq(SYSTEM_OWNER).and(DOMAIN.eq(domain)).and(SECTION.eq("")).and(ITEM_KEY.eq(key)));
   }
 
   public List<SettingPO> findByKeys(String personalOwner, List<String[]> domainAndKeys) {

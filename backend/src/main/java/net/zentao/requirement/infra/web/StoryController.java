@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import net.zentao.platform.activity.ActivityQueryService;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.BatchActionRequest;
@@ -94,6 +96,7 @@ public class StoryController {
   @PostMapping("/products/{productId}/stories")
   @Operation(operationId = "createStory")
   @RequirePrivilege("story-create")
+  @Audit(action = "story-create", objectType = "story")
   public DataEnvelope<StoryView> create(@PathVariable long productId,
       @RequestBody CreateStoryHandler.StoryCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(createHandler.handle(resolver.resolve(request), productId, body));
@@ -102,6 +105,7 @@ public class StoryController {
   @PostMapping("/products/{productId}/stories/batch")
   @Operation(operationId = "batchCreateStories")
   @RequirePrivilege("story-create")
+  @Audit(action = "batch-operation", objectType = "story")
   public DataEnvelope<StoryBatchCreateHandler.StoryBatchCreateResult> batchCreate(@PathVariable long productId,
       @RequestBody StoryBatchCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(batchCreateHandler.handle(resolver.resolve(request), productId, body.items()));
@@ -117,6 +121,8 @@ public class StoryController {
   @PatchMapping("/stories/{storyId}")
   @Operation(operationId = "updateStory")
   @RequirePrivilege("story-edit")
+  @Audit(action = "story-update", objectType = "story")
+  @AuditDiff(objectType = "story")
   public DataEnvelope<StoryView> update(@PathVariable long storyId,
       @RequestBody UpdateStoryHandler.StoryUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(updateHandler.handle(resolver.resolve(request), storyId, body));
@@ -125,6 +131,8 @@ public class StoryController {
   @PostMapping("/stories/{storyId}/submit-review")
   @Operation(operationId = "submitStoryReview")
   @RequirePrivilege("story-submit-review")
+  @Audit(action = "story-submit-review", objectType = "story")
+  @AuditDiff(objectType = "story")
   public DataEnvelope<StoryView> submitReview(@PathVariable long storyId,
       @RequestBody(required = false) SubmitReviewStoryHandler.StorySubmitReviewRequest body,
       HttpServletRequest request) {
@@ -134,6 +142,8 @@ public class StoryController {
   @PostMapping("/stories/{storyId}/pass")
   @Operation(operationId = "passStory")
   @RequirePrivilege("story-pass")
+  @Audit(action = "story-pass", objectType = "story")
+  @AuditDiff(objectType = "story")
   public DataEnvelope<StoryView> pass(@PathVariable long storyId,
       @RequestBody(required = false) PassStoryHandler.StoryPassRequest body, HttpServletRequest request) {
     return DataEnvelope.of(passHandler.handle(resolver.resolve(request), storyId, body));
@@ -142,6 +152,8 @@ public class StoryController {
   @PostMapping("/stories/{storyId}/reject")
   @Operation(operationId = "rejectStory")
   @RequirePrivilege("story-pass")
+  @Audit(action = "story-reject", objectType = "story")
+  @AuditDiff(objectType = "story")
   public DataEnvelope<StoryView> reject(@PathVariable long storyId,
       @RequestBody RejectStoryHandler.StoryRejectRequest body, HttpServletRequest request) {
     return DataEnvelope.of(rejectHandler.handle(resolver.resolve(request), storyId, body));
@@ -150,6 +162,8 @@ public class StoryController {
   @PostMapping("/stories/{storyId}/change")
   @Operation(operationId = "changeStory")
   @RequirePrivilege("story-change")
+  @Audit(action = "story-change", objectType = "story")
+  @AuditDiff(objectType = "story")
   public DataEnvelope<StoryView> change(@PathVariable long storyId, HttpServletRequest request) {
     return DataEnvelope.of(changeHandler.handle(resolver.resolve(request), storyId));
   }
@@ -157,6 +171,8 @@ public class StoryController {
   @PostMapping("/stories/{storyId}/change-done")
   @Operation(operationId = "changeDoneStory")
   @RequirePrivilege("story-change")
+  @Audit(action = "story-change-done", objectType = "story")
+  @AuditDiff(objectType = "story")
   public DataEnvelope<StoryView> changeDone(@PathVariable long storyId,
       @RequestBody UpdateStoryHandler.StoryUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(changeDoneHandler.handle(resolver.resolve(request), storyId, body));
@@ -165,6 +181,8 @@ public class StoryController {
   @PostMapping("/stories/{storyId}/close")
   @Operation(operationId = "closeStory")
   @RequirePrivilege("story-close")
+  @Audit(action = "story-close", objectType = "story")
+  @AuditDiff(objectType = "story")
   public DataEnvelope<StoryView> close(@PathVariable long storyId,
       @RequestBody CloseStoryHandler.StoryCloseRequest body, HttpServletRequest request) {
     return DataEnvelope.of(closeHandler.handle(resolver.resolve(request), storyId, body));
@@ -173,6 +191,8 @@ public class StoryController {
   @PostMapping("/stories/{storyId}/activate")
   @Operation(operationId = "activateStory")
   @RequirePrivilege("story-activate")
+  @Audit(action = "story-activate", objectType = "story")
+  @AuditDiff(objectType = "story")
   public DataEnvelope<StoryView> activate(@PathVariable long storyId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(activateHandler.handle(resolver.resolve(request), storyId, body));
@@ -181,6 +201,8 @@ public class StoryController {
   @PostMapping("/stories/{storyId}/assign")
   @Operation(operationId = "assignStory")
   @RequirePrivilege("story-assign")
+  @Audit(action = "story-assign", objectType = "story")
+  @AuditDiff(objectType = "story")
   public DataEnvelope<StoryView> assign(@PathVariable long storyId,
       @RequestBody AssignStoryHandler.StoryAssignRequest body, HttpServletRequest request) {
     return DataEnvelope.of(assignHandler.handle(resolver.resolve(request), storyId, body));
@@ -188,6 +210,7 @@ public class StoryController {
 
   @PostMapping("/stories/batch")
   @Operation(operationId = "batchStories")
+  @Audit(action = "batch-operation", objectType = "story")
   public DataEnvelope<BatchActionResult> batch(@RequestBody BatchActionRequest body, HttpServletRequest request) {
     return DataEnvelope.of(batchHandler.handle(resolver.resolve(request), body));
   }
@@ -195,6 +218,8 @@ public class StoryController {
   @DeleteMapping("/stories/{storyId}")
   @Operation(operationId = "deleteStory")
   @RequirePrivilege("story-delete")
+  @Audit(action = "story-delete", objectType = "story")
+  @AuditDiff(objectType = "story")
   public DataEnvelope<Void> delete(@PathVariable long storyId, HttpServletRequest request) {
     deleteHandler.handle(resolver.resolve(request), storyId);
     return DataEnvelope.empty();

@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import net.zentao.org.api.AccountApi;
+import net.zentao.platform.error.ErrorCode;
+import net.zentao.platform.i18n.MessageResolver;
 import net.zentao.platform.meta.FieldDefValidator;
 import net.zentao.platform.error.ApiException;
 import net.zentao.platform.rbac.PrivilegeChecker;
@@ -29,16 +31,19 @@ public class ProductBatchHandler {
   private final PrivilegeChecker checker;
   private final WorkflowEngine engine;
   private final FieldDefValidator fieldDefValidator;
+  private final MessageResolver messages;
 
   public ProductBatchHandler(ProductRepository repository, ProductApi productApi, AccountApi accountApi,
       PrivilegeChecker checker, WorkflowEngine engine,
-      FieldDefValidator fieldDefValidator) {
+      FieldDefValidator fieldDefValidator,
+      MessageResolver messages) {
     this.fieldDefValidator = fieldDefValidator;
     this.repository = repository;
     this.productApi = productApi;
     this.accountApi = accountApi;
     this.checker = checker;
     this.engine = engine;
+    this.messages = messages;
   }
 
   /** 批量 edit 的可改字段（product 卡 §5 PATCH 白名单子集；lockVersion 可选，给了就校验）。 */
@@ -59,10 +64,10 @@ public class ProductBatchHandler {
       default -> null;
     };
     if (code == null) {
-      throw ApiException.badRequest("不支持的批量动作：" + action);
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "batch.action.unsupported", action);
     }
     if (!checker.hasPrivilege(actor, code)) {
-      throw ApiException.forbidden("无权限：" + code);
+      throw ApiException.keyed(ErrorCode.FORBIDDEN, "error.privilege.missing", code);
     }
     ProductBatchParams params = toParams(command.params());
     List<BatchActionResult.Item> results = new ArrayList<>();
@@ -71,7 +76,7 @@ public class ProductBatchHandler {
         Product saved = "edit".equals(action) ? edit(actor, id, params) : fire(actor, id, action);
         results.add(BatchActionResult.ok(saved.id()));
       } catch (ApiException e) {
-        results.add(BatchActionResult.failed(id, e.errorCode().code() + ":" + e.getMessage()));
+        results.add(BatchActionResult.failed(id, e.errorCode().code() + ":" + messages.forRequest(e)));
       }
     }
     return new BatchActionResult(results);
@@ -87,7 +92,7 @@ public class ProductBatchHandler {
   private Product edit(SessionPrincipal actor, long productId, ProductBatchParams params) {
     Product product = ProductGuard.requireVisible(repository, productApi, actor, productId);
     if (params.lockVersion() != null && params.lockVersion() != product.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     ProductFields.validate(params.name(), params.code(), params.type(), params.acl(), params.whitelist(),
         params.po(), params.qd(), params.rd(), accountApi);
@@ -102,7 +107,7 @@ public class ProductBatchHandler {
   }
 
   private Product save(Product product) {
-    return repository.update(product).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+    return repository.update(product).orElseThrow(() -> ApiException.lockConflict());
   }
 
   private static ProductBatchParams toParams(Map<String, Object> raw) {

@@ -9,6 +9,7 @@ import java.util.Map;
 import net.zentao.org.api.AccountApi;
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.project.api.ExecutionApi;
 import net.zentao.project.api.ProjectView;
@@ -71,7 +72,7 @@ public class CreateTaskHandler {
         throw ApiException.validation(Map.of("parentId", "crossExecution"));
       }
       if (parent.parentId() != 0) {
-        throw ApiException.guardNotSatisfied("子任务不可再有子任务（父子仅一层）。");
+        throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "task.guard.childOfChild");
       }
     }
 

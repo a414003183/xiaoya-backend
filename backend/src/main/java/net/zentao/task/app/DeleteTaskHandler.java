@@ -2,6 +2,7 @@ package net.zentao.task.app;
 
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.project.api.ExecutionApi;
 import net.zentao.task.domain.Task;
@@ -34,7 +35,7 @@ public class DeleteTaskHandler {
   public void handle(SessionPrincipal actor, long taskId) {
     Task task = TaskGuard.requireWritable(repository, executionApi, actor, taskId);
     if (repository.countActiveChildren(taskId) > 0) {
-      throw ApiException.guardNotSatisfied("父任务存在未删除的子任务，不能删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "task.guard.hasChildren");
     }
     repository.softDelete(taskId);
     activityRecorder.record(actor.account(), "task", taskId, "deleted", null, null);

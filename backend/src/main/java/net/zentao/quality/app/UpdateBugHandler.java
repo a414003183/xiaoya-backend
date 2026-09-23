@@ -1,5 +1,6 @@
 package net.zentao.quality.app;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -11,7 +12,6 @@ import net.zentao.quality.api.BugView;
 import net.zentao.quality.domain.Bug;
 import net.zentao.quality.domain.BugRepository;
 import net.zentao.quality.domain.TestCaseRepository;
-import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,7 +45,7 @@ public class UpdateBugHandler {
   public BugView handle(SessionPrincipal actor, long bugId, BugUpdateRequest command) {
     Bug bug = BugActionSupport.require(actor, repository, productApi, bugId);
     if (command.lockVersion() == null || command.lockVersion() != bug.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     BugFields.validate(command.title(), command.keywords(), command.severity(), command.priority(),
         command.type(), command.os(), command.browser(), command.openedBuilds(), null, null,

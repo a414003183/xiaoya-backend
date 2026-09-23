@@ -147,11 +147,11 @@ class DocSpaceServiceTest extends ApiTestSupport {
         "{\"title\":\"库内文档\",\"content\":\"正文\"}", cookieA));
     assertEquals(1, data(send("GET", "/api/v1/doc-spaces/" + spaceId, null, cookieA)).at("/docCount").asLong());
 
-    HttpResponse<String> nonEmpty = send("POST", "/api/v1/doc-spaces/" + spaceId + "/delete", "{}", cookieA);
+    HttpResponse<String> nonEmpty = send("DELETE", "/api/v1/doc-spaces/" + spaceId, null, cookieA);
     assertEquals(422, nonEmpty.statusCode(), nonEmpty.body());
 
-    assertEquals(200, send("POST", "/api/v1/docs/" + docId + "/delete", "{}", cookieA).statusCode());
-    assertEquals(200, send("POST", "/api/v1/doc-spaces/" + spaceId + "/delete", "{}", cookieA).statusCode());
+    assertEquals(200, send("DELETE", "/api/v1/docs/" + docId, null, cookieA).statusCode());
+    assertEquals(200, send("DELETE", "/api/v1/doc-spaces/" + spaceId, null, cookieA).statusCode());
     assertEquals(404, send("GET", "/api/v1/doc-spaces/" + spaceId, null, cookieA).statusCode());
 
     long locked = createSpace(cookieA, spaceJson("乐观锁库", null)).at("/id").asLong();

@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.project.domain.CardRepository;
 import net.zentao.project.domain.Lane;
@@ -86,7 +87,7 @@ public class LaneHandlers {
   public void delete(SessionPrincipal actor, long boardId, long laneId) {
     require(laneId, boardId);
     if (cardRepository.countActiveInLane(laneId) > 0) {
-      throw ApiException.guardNotSatisfied("列内仍有卡片，不能删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "boardLane.guard.hasCards");
     }
     laneRepository.softDelete(laneId);
   }
@@ -95,7 +96,7 @@ public class LaneHandlers {
   private Lane require(long laneId, long boardId) {
     return laneRepository.findActiveById(laneId)
         .filter(lane -> lane.boardId() == boardId)
-        .orElseThrow(() -> ApiException.notFound("看板列"));
+        .orElseThrow(() -> ApiException.notFound("entity.boardLane"));
   }
 
   private static String requireName(String name, Map<String, String> errors) {

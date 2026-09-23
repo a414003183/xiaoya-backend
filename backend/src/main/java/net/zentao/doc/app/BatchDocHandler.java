@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
+import net.zentao.platform.i18n.MessageResolver;
 import net.zentao.platform.rbac.PrivilegeChecker;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.web.BatchActionRequest;
@@ -22,11 +24,14 @@ public class BatchDocHandler {
   private final DeleteDocHandler deleteHandler;
   private final MoveDocHandler moveHandler;
   private final PrivilegeChecker checker;
+  private final MessageResolver messages;
 
-  public BatchDocHandler(DeleteDocHandler deleteHandler, MoveDocHandler moveHandler, PrivilegeChecker checker) {
+  public BatchDocHandler(DeleteDocHandler deleteHandler, MoveDocHandler moveHandler, PrivilegeChecker checker,
+      MessageResolver messages) {
     this.deleteHandler = deleteHandler;
     this.moveHandler = moveHandler;
     this.checker = checker;
+    this.messages = messages;
   }
 
   public BatchActionResult handle(SessionPrincipal actor, BatchActionRequest command) {
@@ -43,10 +48,10 @@ public class BatchDocHandler {
       default -> null;
     };
     if (code == null) {
-      throw ApiException.badRequest("不支持的批量动作：" + action);
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "batch.action.unsupported", action);
     }
     if (!checker.hasPrivilege(actor, code)) {
-      throw ApiException.forbidden("无权限：" + code);
+      throw ApiException.keyed(ErrorCode.FORBIDDEN, "error.privilege.missing", code);
     }
     MoveDocHandler.DocMoveRequest move = "move".equals(action) ? moveRequest(command.params()) : null;
     List<BatchActionResult.Item> results = new ArrayList<>();
@@ -59,7 +64,7 @@ public class BatchDocHandler {
         }
         results.add(BatchActionResult.ok(id));
       } catch (ApiException e) {
-        results.add(BatchActionResult.failed(id, e.errorCode().code() + ":" + e.getMessage()));
+        results.add(BatchActionResult.failed(id, e.errorCode().code() + ":" + messages.forRequest(e)));
       }
     }
     return new BatchActionResult(results);

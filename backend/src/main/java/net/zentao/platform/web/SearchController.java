@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
+import net.zentao.platform.ratelimit.RateLimits;
 import net.zentao.platform.search.SearchRegistry;
 import net.zentao.platform.search.SearchResultView;
 import net.zentao.platform.search.SearchScope;
@@ -25,10 +27,12 @@ public class SearchController {
 
   private final SearchRegistry registry;
   private final SessionResolver resolver;
+  private final RateLimits rateLimits;
 
-  public SearchController(SearchRegistry registry, SessionResolver resolver) {
+  public SearchController(SearchRegistry registry, SessionResolver resolver, RateLimits rateLimits) {
     this.registry = registry;
     this.resolver = resolver;
+    this.rateLimits = rateLimits;
   }
 
   @GetMapping("/search")
@@ -40,8 +44,10 @@ public class SearchController {
       @RequestParam(defaultValue = "50") int limit,
       jakarta.servlet.http.HttpServletRequest request) {
     SessionPrincipal principal = resolver.resolve(request);
+    // T59 SEC-07：逐 scope 打各域 LIKE，按账号计窗（超限 42901）
+    rateLimits.requireAllowed(RateLimits.Scope.search, principal.account());
     if (q.isBlank() || q.length() > 100) {
-      throw ApiException.badRequest("q 必填且 ≤100 字符。");
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "search.query.required");
     }
     List<SearchScope> scopes;
     if (scope != null && !scope.isBlank()) {

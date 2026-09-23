@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 创建账号（org 卡 §4/§8）：account 全库唯一 → 42201；初始 groupIds 写 user_group；动态流 created。
+ * 创建账号（org 卡 §4/§8）：account 全库唯一 → 42201；初始 roleIds 写 user_role；动态流 created。
  * AccountView 装配（platform 契约面，org 经网关方向构建）。
  */
 @Component
@@ -22,14 +22,13 @@ public class CreateAccountHandler {
 
   private final AccountRepository repository;
   private final ActivityRecorder activityRecorder;
-  private final AccountRoleValidator roleValidator;
-  private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+  private final BCryptPasswordEncoder passwordEncoder;
 
   public CreateAccountHandler(AccountRepository repository, ActivityRecorder activityRecorder,
-      AccountRoleValidator roleValidator) {
+      BCryptPasswordEncoder passwordEncoder) {
     this.repository = repository;
     this.activityRecorder = activityRecorder;
-    this.roleValidator = roleValidator;
+    this.passwordEncoder = passwordEncoder;
   }
 
   public record AccountCreateRequest(
@@ -37,33 +36,31 @@ public class CreateAccountHandler {
       @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String password,
       @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String realName,
       String nickname,
-      @Schema(maxLength = 16, description = "账号角色码，必须存在于角色字典（GET /roles）") String role,
       Long departmentId, String email, String mobile, String phone,
       @Schema(allowableValues = {"m", "f"}) String gender, java.time.LocalDate birthday,
-      java.time.LocalDate joinedAt, Long avatarFileId, List<Long> groupIds) {}
+      java.time.LocalDate joinedAt, Long avatarFileId, List<Long> roleIds) {}
 
   @Transactional
   public Account handle(SessionPrincipal actor, AccountCreateRequest command) {
     validate(command.account(), command.password(), command.realName());
-    roleValidator.require(command.role());
     if (repository.existsByAccount(command.account())) {
       throw ApiException.validation(java.util.Map.of("account", "duplicate"));
     }
-    if (command.groupIds() != null && !command.groupIds().isEmpty()) {
-      List<Long> missing = repository.findMissingGroupIds(command.groupIds());
+    if (command.roleIds() != null && !command.roleIds().isEmpty()) {
+      List<Long> missing = repository.findMissingRoleIds(command.roleIds());
       if (!missing.isEmpty()) {
-        throw ApiException.validation(java.util.Map.of("groupIds", "notFound"));
+        throw ApiException.validation(java.util.Map.of("roleIds", "notFound"));
       }
     }
     Instant now = Instant.now();
     Account account = repository.insert(new Account(
         0, command.account(), passwordEncoder.encode(command.password()), command.realName(),
-        command.nickname(), command.role(), command.departmentId(), command.email(), command.mobile(),
+        command.nickname(), command.departmentId(), command.email(), command.mobile(),
         command.phone(), command.gender() == null ? "m" : command.gender(), command.birthday(),
         command.joinedAt(), command.avatarFileId(), "active", false, 0, null, null,
         actor == null ? null : actor.account(), now, null, null, null, 0));
-    if (command.groupIds() != null && !command.groupIds().isEmpty()) {
-      repository.replaceGroups(account.id(), command.groupIds());
+    if (command.roleIds() != null && !command.roleIds().isEmpty()) {
+      repository.replaceRoles(account.id(), command.roleIds());
     }
     if (actor != null) {
       activityRecorder.record(actor.account(), "account", account.id(), "created", null, null);
@@ -83,13 +80,12 @@ public class CreateAccountHandler {
     }
   }
 
-  public static AccountView toView(Account account, List<Long> groupIds) {
+  public static AccountView toView(Account account, List<Long> roleIds) {
     return new AccountView(account.id(), account.account(), account.realName(), account.nickname(),
-        account.role(),
         account.departmentId(), account.email(), account.mobile(), account.phone(),
         account.gender() == null ? null : net.zentao.platform.session.Gender.valueOf(account.gender()),
         account.birthday(), account.joinedAt(), account.avatarFileId(),
-        net.zentao.platform.session.AccountStatus.valueOf(account.status()), account.mustChangePassword(), groupIds,
+        net.zentao.platform.session.AccountStatus.valueOf(account.status()), account.mustChangePassword(), roleIds,
         account.fails(), account.lockedAt(), account.lastActiveAt(), account.createdBy(),
         account.createdAt(), account.updatedBy(), account.updatedAt(), account.deletedAt(), account.lockVersion());
   }

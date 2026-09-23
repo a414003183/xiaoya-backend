@@ -16,8 +16,10 @@ import org.springframework.stereotype.Component;
 public class DictRegistry {
 
   private final Map<String, DictProvider> providers = new ConcurrentHashMap<>();
+  private final DictRepository dbTypes;
 
-  public DictRegistry(net.zentao.platform.rbac.PrivilegeCatalog catalog) {
+  public DictRegistry(net.zentao.platform.rbac.PrivilegeCatalog catalog, DictRepository dbTypes) {
+    this.dbTypes = dbTypes;
     // privileges 字典（platform 卡 §3.9）：权限码目录 = PrivilegeCatalog 全集并集，org 矩阵页数据源
     register(new DictProvider() {
       @Override
@@ -35,27 +37,61 @@ public class DictRegistry {
       }
     });
     register(builtin("timezones", List.of(
-        Map.of("value", "Asia/Shanghai", "label", "(GMT+08:00) 北京"),
-        Map.of("value", "Asia/Taipei", "label", "(GMT+08:00) 台北"),
-        Map.of("value", "Asia/Tokyo", "label", "(GMT+09:00) 东京"),
-        Map.of("value", "Asia/Singapore", "label", "(GMT+08:00) 新加坡"),
-        Map.of("value", "Europe/London", "label", "(GMT+00:00) 伦敦"),
-        Map.of("value", "Europe/Berlin", "label", "(GMT+01:00) 柏林"),
-        Map.of("value", "America/New_York", "label", "(GMT-05:00) 纽约"),
-        Map.of("value", "America/Los_Angeles", "label", "(GMT-08:00) 洛杉矶"),
-        Map.of("value", "UTC", "label", "(GMT+00:00) UTC"))));
+        Map.of("value", "Asia/Shanghai", "i18n", "dict.timezone.Asia.Shanghai"),
+        Map.of("value", "Asia/Taipei", "i18n", "dict.timezone.Asia.Taipei"),
+        Map.of("value", "Asia/Tokyo", "i18n", "dict.timezone.Asia.Tokyo"),
+        Map.of("value", "Asia/Singapore", "i18n", "dict.timezone.Asia.Singapore"),
+        Map.of("value", "Europe/London", "i18n", "dict.timezone.Europe.London"),
+        Map.of("value", "Europe/Berlin", "i18n", "dict.timezone.Europe.Berlin"),
+        Map.of("value", "America/New_York", "i18n", "dict.timezone.America.New_York"),
+        Map.of("value", "America/Los_Angeles", "i18n", "dict.timezone.America.Los_Angeles"),
+        Map.of("value", "UTC", "i18n", "dict.timezone.UTC"))));
     register(builtin("locales", List.of(
-        Map.of("value", "zh-cn", "label", "简体中文"),
-        Map.of("value", "zh-tw", "label", "繁體中文"),
-        Map.of("value", "en", "label", "English"))));
+        Map.of("value", "zh-cn", "i18n", "dict.locale.zh-cn"),
+        Map.of("value", "zh-tw", "i18n", "dict.locale.zh-tw"),
+        Map.of("value", "en", "i18n", "dict.locale.en"))));
   }
 
   public void register(DictProvider provider) {
     providers.put(provider.name(), provider);
   }
 
+  /** 是否为代码注册的字典名（T16：DB 类型不得撞这些名，否则永远查不到——查找是先注册表后 DB）。 */
+  public boolean isRegistered(String name) {
+    return providers.containsKey(name);
+  }
+
+  /**
+   * 查字典：**代码注册优先**，未注册时回落到 DB 字典（T16 P1-4）。
+   * 回落条目形 `{value, label}`（管理员在字典页填的字面文案），与内建的 `{value, i18n}` 并存——
+   * 前端 `dictOptions` 两种都认。
+   */
   public Optional<DictProvider> get(String name) {
-    return Optional.ofNullable(providers.get(name));
+    DictProvider registered = providers.get(name);
+    if (registered != null) {
+      return Optional.of(registered);
+    }
+    return dbTypes.findType(name)
+        .filter(type -> DictRepository.ACTIVE.equals(type.getStatus()))
+        .map(type -> dbProvider(type.getCode()));
+  }
+
+  private DictProvider dbProvider(String code) {
+    return new DictProvider() {
+      @Override
+      public String name() {
+        return code;
+      }
+
+      @Override
+      public List<Map<String, Object>> items() {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (DictDataPO po : dbTypes.listActiveData(code)) {
+          rows.add(Map.of("value", po.getItemValue(), "label", po.getItemLabel()));
+        }
+        return rows;
+      }
+    };
   }
 
   private static DictProvider builtin(String name, List<Map<String, Object>> items) {

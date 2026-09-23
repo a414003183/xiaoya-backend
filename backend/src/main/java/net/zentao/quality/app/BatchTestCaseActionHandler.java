@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
+import net.zentao.platform.i18n.MessageResolver;
 import net.zentao.platform.rbac.PrivilegeChecker;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.web.BatchActionRequest;
@@ -20,12 +22,15 @@ public class BatchTestCaseActionHandler {
   private final ReviewTestCaseHandler reviewHandler;
   private final UpdateTestCaseHandler updateHandler;
   private final PrivilegeChecker checker;
+  private final MessageResolver messages;
 
   public BatchTestCaseActionHandler(ReviewTestCaseHandler reviewHandler, UpdateTestCaseHandler updateHandler,
-      PrivilegeChecker checker) {
+      PrivilegeChecker checker,
+      MessageResolver messages) {
     this.reviewHandler = reviewHandler;
     this.updateHandler = updateHandler;
     this.checker = checker;
+    this.messages = messages;
   }
 
   public BatchActionResult handle(SessionPrincipal actor, BatchActionRequest command) {
@@ -39,10 +44,10 @@ public class BatchTestCaseActionHandler {
       default -> null;
     };
     if (code == null) {
-      throw ApiException.badRequest("不支持的批量动作：" + action);
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "batch.action.unsupported", action);
     }
     if (!checker.hasPrivilege(actor, code)) {
-      throw ApiException.forbidden("无权限：" + code);
+      throw ApiException.keyed(ErrorCode.FORBIDDEN, "error.privilege.missing", code);
     }
     Map<String, Object> params = command.params() == null ? Map.of() : command.params();
     // edit 逐行自带 id + lockVersion（A-03），review 循环对象取 command.ids()
@@ -56,7 +61,7 @@ public class BatchTestCaseActionHandler {
             new ReviewTestCaseHandler.TestCaseReviewRequest(text(params, "result"), text(params, "comment")));
         results.add(BatchActionResult.ok(id));
       } catch (ApiException e) {
-        results.add(BatchActionResult.failed(id, e.errorCode().code() + ":" + e.getMessage()));
+        results.add(BatchActionResult.failed(id, e.errorCode().code() + ":" + messages.forRequest(e)));
       }
     }
     return new BatchActionResult(results);
@@ -69,15 +74,16 @@ public class BatchTestCaseActionHandler {
       Long id = longNumber(row, "id");
       try {
         if (id == null) {
-          throw ApiException.badRequest("rows[].id required");
+          throw ApiException.keyed(ErrorCode.BAD_REQUEST, "error.param.missing");
         }
         if (row.get("lockVersion") == null) {
-          throw ApiException.lockConflict("lockVersion required");
+          // 缺 lockVersion 报 40901 是既定口径（错误码冻结；缺参报锁冲突的怪味归 T66 统一时再议）
+          throw ApiException.keyed(ErrorCode.LOCK_CONFLICT, "error.param.missing");
         }
         updateHandler.handle(actor, id, toUpdate(row));
         results.add(BatchActionResult.ok(id));
       } catch (ApiException e) {
-        results.add(BatchActionResult.failed(id == null ? 0 : id, e.errorCode().code() + ":" + e.getMessage()));
+        results.add(BatchActionResult.failed(id == null ? 0 : id, e.errorCode().code() + ":" + messages.forRequest(e)));
       }
     }
     return new BatchActionResult(results);

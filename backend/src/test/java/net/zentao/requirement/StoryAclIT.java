@@ -62,10 +62,10 @@ class StoryAclIT extends MySqlContainerSupport {
     if (storyGroupId != 0) {
       return storyGroupId;
     }
-    HttpResponse<String> group = send("POST", "/api/v1/groups", "{\"name\":\"IT 需求组\"}", adminCookie);
+    HttpResponse<String> group = send("POST", "/api/v1/roles", "{\"name\":\"IT 需求组\"}", adminCookie);
     assertEquals(200, group.statusCode(), group.body());
     storyGroupId = json.readTree(group.body()).at("/data/id").asLong();
-    send("PUT", "/api/v1/groups/" + storyGroupId + "/privileges",
+    send("PUT", "/api/v1/roles/" + storyGroupId + "/privileges",
         "{\"codes\":[\"product-view\",\"story-view\",\"story-create\",\"story-edit\"]}", adminCookie);
     return storyGroupId;
   }
@@ -73,7 +73,7 @@ class StoryAclIT extends MySqlContainerSupport {
   private void ensureAccount(String account) throws Exception {
     HttpResponse<String> created = send("POST", "/api/v1/accounts",
         "{\"account\":\"" + account + "\",\"password\":\"secret123\",\"realName\":\"" + account
-            + "\",\"groupIds\":[" + ensureGroup() + "]}",
+            + "\",\"roleIds\":[" + ensureGroup() + "]}",
         adminCookie);
     assertTrue(created.statusCode() == 200 || created.statusCode() == 422, created.body());
   }

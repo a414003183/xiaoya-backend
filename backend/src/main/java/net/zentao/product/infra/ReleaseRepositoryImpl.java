@@ -7,6 +7,7 @@ import com.mybatisflex.core.row.Row;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.product.domain.Release;
 import net.zentao.product.domain.ReleaseRepository;
 import org.springframework.stereotype.Component;
@@ -75,7 +76,7 @@ public class ReleaseRepositoryImpl implements ReleaseRepository {
 
   @Override
   public void softDelete(long id) {
-    Db.updateByCondition("product_release", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
+    SoftDeletes.apply("product_release", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
   }
 
   private Release toDomain(ReleasePO po) {

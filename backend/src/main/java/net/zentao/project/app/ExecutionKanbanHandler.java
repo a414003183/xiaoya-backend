@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.workflow.StateMachine;
 import net.zentao.platform.workflow.WorkflowRegistry;
@@ -36,7 +37,9 @@ public class ExecutionKanbanHandler {
   }
 
   /** ExecutionKanbanLane（contract：key + items[StoryView]）。 */
-  public record ExecutionKanbanLane(String key, List<StoryView> items) {}
+  public record ExecutionKanbanLane(
+      @Schema(allowableValues = {"active", "changing", "changed", "closed", "draft", "reviewing"}) String key,
+      List<StoryView> items) {}
 
   /** ExecutionKanbanView（contract：lanes）。空列保留——列结构由状态机决定，不随数据抖动。 */
   public record ExecutionKanbanView(List<ExecutionKanbanLane> lanes) {}
@@ -62,13 +65,13 @@ public class ExecutionKanbanHandler {
   public StoryView move(SessionPrincipal actor, long executionId, long cardId, ExecutionKanbanMoveRequest command) {
     projectQueryService.requireVisible(actor, "execution", executionId);
     if (!storyQueryService.storyIds("execution", executionId).contains(cardId)) {
-      throw ApiException.notFound("看板卡片");
+      throw ApiException.notFound("entity.boardCard");
     }
     String column = command == null ? null : command.column();
     if (column == null || !storyMachine().states().contains(column)) {
       throw ApiException.validation(Map.of("column", "invalid"));
     }
-    StoryView card = storyApi.findById(cardId).orElseThrow(() -> ApiException.notFound("看板卡片"));
+    StoryView card = storyApi.findById(cardId).orElseThrow(() -> ApiException.notFound("entity.boardCard"));
     if (column.equals(card.status())) {
       return card;
     }
@@ -81,10 +84,10 @@ public class ExecutionKanbanHandler {
         .filter(transition -> target.equals(transition.to()) && transition.from().contains(status))
         .map(StateMachine.Transition::action)
         .findFirst()
-        .orElseThrow(() -> ApiException.stateActionNotAllowed("当前状态不允许迁往该列：" + target));
+        .orElseThrow(() -> ApiException.keyed(ErrorCode.STATE_ACTION_NOT_ALLOWED, "boardCard.state.columnDenied", target));
   }
 
   private StateMachine storyMachine() {
-    return workflowRegistry.get("story").orElseThrow(() -> ApiException.internal("未注册的状态机：story"));
+    return workflowRegistry.get("story").orElseThrow(() -> ApiException.keyed(ErrorCode.INTERNAL_ERROR, "workflow.machine.unregistered", "story"));
   }
 }

@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.project.domain.AclEntryRepository;
 import net.zentao.project.domain.Project;
 import net.zentao.project.domain.ProjectRepository;
@@ -95,7 +96,7 @@ public class ProjectRepositoryImpl implements ProjectRepository {
 
   @Override
   public void softDelete(long id) {
-    Db.updateByCondition("project", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
+    SoftDeletes.apply("project", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
   }
 
   private List<Project> withWhitelists(List<ProjectPO> rows) {

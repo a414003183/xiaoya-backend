@@ -86,7 +86,9 @@ class BatchEditRowsApiTest extends net.zentao.ApiTestSupport {
     assertEquals(false, results.get(1).at("/ok").asBoolean(), results.toString());
     assertTrue(results.get(1).at("/error").asText().startsWith("40901"), results.toString());
     assertEquals(false, results.get(2).at("/ok").asBoolean(), results.toString());
-    assertEquals("40901:lockVersion required", results.get(2).at("/error").asText(), results.toString());
+    // T63 keyed 收口：原断言钉死开发串「40901:lockVersion required」——该串是裸字符串工厂的动态文案
+    //（错误体系红线点名清除，T05 先例：过期断言会掩盖真回归），改为钉 keyed 后的语言包文案；错误码 40901 断言不变。
+    assertEquals("40901:缺少必填参数。", results.get(2).at("/error").asText(), results.toString());
 
     assertEquals("行一改", json.readTree(send("GET", "/api/v1/bugs/" + ok, null).body())
         .at("/data/title").asText());
@@ -141,7 +143,9 @@ class BatchEditRowsApiTest extends net.zentao.ApiTestSupport {
 
     assertTrue(results.get(0).at("/ok").asBoolean(), results.toString());
     assertTrue(results.get(1).at("/error").asText().startsWith("40901"), results.toString());
-    assertEquals("40901:lockVersion required", results.get(2).at("/error").asText(), results.toString());
+    // T63 keyed 收口：原断言钉死开发串「40901:lockVersion required」——该串是裸字符串工厂的动态文案
+    //（错误体系红线点名清除，T05 先例：过期断言会掩盖真回归），改为钉 keyed 后的语言包文案；错误码 40901 断言不变。
+    assertEquals("40901:缺少必填参数。", results.get(2).at("/error").asText(), results.toString());
 
     assertEquals(1, json.readTree(send("GET", "/api/v1/test-cases/" + ok, null).body())
         .at("/data/priority").asInt());

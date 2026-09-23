@@ -2,6 +2,7 @@ package net.zentao;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods;
 
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
@@ -38,6 +39,20 @@ class ArchitectureTest {
     // 这类 api↔api 双向引用为 01 §2.3 所允许；app/domain/infra 之间成环才是违规。
     SlicesRuleDefinition.slices()
         .matching("net.zentao.(*).(app|domain|infra)..")
+        .should()
+        .beFreeOfCycles()
+        .check(CLASSES);
+  }
+
+  @Test
+  @DisplayName("A2 · platform 关注点之间无包级依赖环（T64 / BE-08、BE-16）")
+  void platformSlicesAreCycleFree() {
+    // BE-16 豁免口径（成文文本见 CONVENTIONS §2.1 增量）：platform 无内部分层——
+    // `platform.<concern>` 扁平组织，与域的四层（api/app/domain/infra）不对称，故**域四层分层规则**
+    //（A1 的层纯度、A5 的事务落点）对 platform 以「关注点切片 + 事务入口 bean」解读，不强求 app/domain/infra 分层。
+    // 但**环检测不豁免**：关注点之间成环即设计腐坏，platform 全量纳入 slice 环检测（此前 ~30% 代码无环检测）。
+    SlicesRuleDefinition.slices()
+        .matching("net.zentao.platform.(*)..")
         .should()
         .beFreeOfCycles()
         .check(CLASSES);
@@ -109,6 +124,18 @@ class ArchitectureTest {
         .resideOutsideOfPackage("..app..")
         .should()
         .beAnnotatedWith(Transactional.class)
+        .check(CLASSES);
+    // 方法级（T64 / BE-08）：类级之上必须再查方法级——T57 起事务入口改方法级（ApplyLangImportHandler 等），
+    // 只查类级会整片漏检。合法落点 =业务域 app 层（Handler/服务入口）+ platform.<concern> 的写入口 bean
+    //（platform 无内部分层，其 *Handler/*Recorder 就是 app 层等价物，见 platformSlicesAreCycleFree 的豁免口径）；
+    // domain/infra/api 与 platform.web（控制器）的方法级注解一律报红——事务边界在入口，不在技术组件。
+    noMethods()
+        .that()
+        .areDeclaredInClassesThat()
+        .resideInAnyPackage("..domain..", "..api..", "..infra..", "..platform.web..")
+        .should()
+        .beAnnotatedWith(Transactional.class)
+        .allowEmptyShould(true)
         .check(CLASSES);
   }
 }

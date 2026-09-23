@@ -9,9 +9,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.project.api.ExecutionApi;
 import net.zentao.project.api.ProjectApi;
@@ -126,8 +128,7 @@ public class ProjectQueryService {
     List<ProjectView> items = repository.queryPage(query, filters.offset(), filters.limit()).stream()
         .map(ProjectView::of)
         .toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, COLUMNS::get, value -> Optional.empty(), injected);
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), COLUMNS::get, value -> Optional.empty(), injected);
     return new ProjectList(items, repository.countByQuery(countQuery));
   }
 
@@ -147,7 +148,7 @@ public class ProjectQueryService {
       try {
         productId = Long.parseLong(value);
       } catch (NumberFormatException e) {
-        throw ApiException.badRequest("无法解析的过滤值：productId=" + value);
+        throw ApiException.keyed(ErrorCode.BAD_REQUEST, "project.filter.productIdInvalid", value);
       }
       projectIds.addAll(projectProductRepository.projectIdsOfProduct(productId));
     }
@@ -163,7 +164,7 @@ public class ProjectQueryService {
     if (q == null || q.isBlank()) {
       return null;
     }
-    String like = "%" + q + "%";
-    return new QueryColumn("name").like(like).or(new QueryColumn("code").like(like));
+    String like = LikePatterns.contains(q);
+    return new QueryColumn("name").likeRaw(like).or(new QueryColumn("code").likeRaw(like));
   }
 }

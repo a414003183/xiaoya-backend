@@ -7,6 +7,7 @@ import com.mybatisflex.core.row.Row;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.project.domain.AclEntryRepository;
 import net.zentao.project.domain.BoardSpace;
 import net.zentao.project.domain.BoardSpaceRepository;
@@ -74,7 +75,7 @@ public class BoardSpaceRepositoryImpl implements BoardSpaceRepository {
 
   @Override
   public void softDelete(long id) {
-    Db.updateByCondition("board_space", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
+    SoftDeletes.apply("board_space", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
   }
 
   private List<BoardSpace> withWhitelists(List<BoardSpacePO> rows) {

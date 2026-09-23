@@ -32,8 +32,9 @@ public class CreateProductHandler {
   }
 
   public record ProductCreateRequest(
-      Long programId, @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name, String code, String type,
-      String po, String qd, String rd, String acl,
+      Long programId, @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name, String code,
+      @Schema(allowableValues = {"branch", "normal", "platform"}) String type,
+      String po, String qd, String rd, @Schema(allowableValues = {"custom", "public", "private"}) String acl,
       List<String> whitelist, String description, Integer sort, Map<String, Object> customFields) {}
 
   @Transactional

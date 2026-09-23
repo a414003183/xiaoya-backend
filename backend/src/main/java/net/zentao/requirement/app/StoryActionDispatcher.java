@@ -1,6 +1,7 @@
 package net.zentao.requirement.app;
 
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.web.CommentRequest;
 import net.zentao.requirement.api.StoryView;
@@ -45,7 +46,7 @@ public class StoryActionDispatcher {
       case "close" -> closeHandler.handle(actor, storyId, new CloseStoryHandler.StoryCloseRequest(null, null, comment));
       case "activate" -> activateHandler.handle(actor, storyId,
           comment == null ? null : new CommentRequest(comment));
-      default -> throw ApiException.badRequest("未开放给跨域调用的需求动作：" + action);
+      default -> throw ApiException.keyed(ErrorCode.BAD_REQUEST, "story.action.notCrossDomain", action);
     };
   }
 }

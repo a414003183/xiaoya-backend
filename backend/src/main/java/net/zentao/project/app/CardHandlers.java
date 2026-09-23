@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import net.zentao.org.api.AccountApi;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.project.domain.Card;
 import net.zentao.project.domain.CardRepository;
@@ -117,7 +118,7 @@ public class CardHandlers {
   public CardView update(SessionPrincipal actor, long cardId, CardUpdateRequest command) {
     Card card = require(actor, cardId);
     if (command.lockVersion() == null || command.lockVersion() != card.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     Map<String, String> errors = new LinkedHashMap<>();
     String name = command.name() == null ? null : requireName(command.name(), errors);
@@ -160,7 +161,7 @@ public class CardHandlers {
     }
     long others = cardRepository.countActiveInLaneExcluding(target.id(), card.id());
     if (target.limitsWip() && others >= target.wipLimit()) {
-      throw ApiException.guardNotSatisfied("目标列已达 WIP 上限。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "boardLane.guard.wipExceeded");
     }
     card.move(target.id(), command.sort());
     card.markUpdatedBy(actor.account());
@@ -193,14 +194,14 @@ public class CardHandlers {
   }
 
   private Card require(SessionPrincipal actor, long cardId) {
-    Card card = cardRepository.findActiveById(cardId).orElseThrow(() -> ApiException.notFound("卡片"));
+    Card card = cardRepository.findActiveById(cardId).orElseThrow(() -> ApiException.notFound("entity.boardCard"));
     queryService.requireVisibleBoard(actor, card.boardId());
     return card;
   }
 
   private Card repositoryUpdate(Card card) {
     return cardRepository.update(card)
-        .orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+        .orElseThrow(() -> ApiException.lockConflict());
   }
 
   private Lane requireLane(long boardId, long laneId) {

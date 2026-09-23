@@ -2,6 +2,8 @@ package net.zentao.project.infra.web;
 
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.CommentRequest;
@@ -56,6 +58,8 @@ public class BoardController {
   @PatchMapping("/boards/{boardId}")
   @Operation(operationId = "updateBoard")
   @RequirePrivilege("board-edit")
+  @Audit(action = "board-update", objectType = "board")
+  @AuditDiff(objectType = "board")
   public DataEnvelope<BoardView> update(@PathVariable long boardId, @RequestBody BoardUpdateRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(boardHandlers.update(resolver.resolve(request), boardId, body));
@@ -64,6 +68,8 @@ public class BoardController {
   @PostMapping("/boards/{boardId}/close")
   @Operation(operationId = "closeBoard")
   @RequirePrivilege("board-close")
+  @Audit(action = "board-close", objectType = "board")
+  @AuditDiff(objectType = "board")
   public DataEnvelope<BoardView> close(@PathVariable long boardId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(boardHandlers.close(resolver.resolve(request), boardId, comment(body)));
@@ -72,6 +78,8 @@ public class BoardController {
   @PostMapping("/boards/{boardId}/activate")
   @Operation(operationId = "activateBoard")
   @RequirePrivilege("board-close")
+  @Audit(action = "board-activate", objectType = "board")
+  @AuditDiff(objectType = "board")
   public DataEnvelope<BoardView> activate(@PathVariable long boardId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(boardHandlers.activate(resolver.resolve(request), boardId, comment(body)));
@@ -80,6 +88,8 @@ public class BoardController {
   @DeleteMapping("/boards/{boardId}")
   @Operation(operationId = "deleteBoard")
   @RequirePrivilege("board-edit")
+  @Audit(action = "board-delete", objectType = "board")
+  @AuditDiff(objectType = "board")
   public DataEnvelope<Void> delete(@PathVariable long boardId, HttpServletRequest request) {
     boardHandlers.delete(resolver.resolve(request), boardId);
     return DataEnvelope.empty();
@@ -88,6 +98,7 @@ public class BoardController {
   @PostMapping("/boards/{boardId}/lanes")
   @Operation(operationId = "createLane")
   @RequirePrivilege("board-edit")
+  @Audit(action = "board-lane-create", objectType = "board")
   public DataEnvelope<LaneView> createLane(@PathVariable long boardId, @RequestBody LaneCreateRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(laneHandlers.create(resolver.resolve(request), boardId, body));
@@ -96,6 +107,7 @@ public class BoardController {
   @PatchMapping("/boards/{boardId}/lanes/{laneId}")
   @Operation(operationId = "updateLane")
   @RequirePrivilege("board-edit")
+  @Audit(action = "board-lane-update", objectType = "board")
   public DataEnvelope<LaneView> updateLane(@PathVariable long boardId, @PathVariable long laneId,
       @RequestBody LaneUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(laneHandlers.update(resolver.resolve(request), boardId, laneId, body));
@@ -104,6 +116,7 @@ public class BoardController {
   @DeleteMapping("/boards/{boardId}/lanes/{laneId}")
   @Operation(operationId = "deleteLane")
   @RequirePrivilege("board-edit")
+  @Audit(action = "board-lane-delete", objectType = "board")
   public DataEnvelope<Void> deleteLane(@PathVariable long boardId, @PathVariable long laneId,
       HttpServletRequest request) {
     laneHandlers.delete(resolver.resolve(request), boardId, laneId);
@@ -121,6 +134,7 @@ public class BoardController {
   @PostMapping("/boards/{boardId}/cards")
   @Operation(operationId = "createCard")
   @RequirePrivilege("board-card-create")
+  @Audit(action = "board-card-create", objectType = "board")
   public DataEnvelope<CardView> createCard(@PathVariable long boardId, @RequestBody CardCreateRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(cardHandlers.create(resolver.resolve(request), boardId, body));

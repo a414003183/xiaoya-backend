@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 import net.zentao.doc.domain.DocSpace;
 import net.zentao.doc.domain.DocSpaceRepository;
+import net.zentao.platform.persistence.SoftDeletes;
 import org.springframework.stereotype.Component;
 
 /** 文档库仓储实现（infra：PO ↔ 领域对象；whitelist 为 JSON 文本列）。 */
@@ -93,7 +94,7 @@ public class DocSpaceRepositoryImpl implements DocSpaceRepository {
 
   @Override
   public void softDelete(long id, String actor, java.time.Instant at) {
-    Db.updateByCondition("doc_space", Row.of("deleted_at", at).set("updated_by", actor),
+    SoftDeletes.apply("doc_space", Row.of("deleted_at", at).set("updated_by", actor),
         new QueryColumn("id").eq(id).and(DELETED_AT.isNull()));
   }
 

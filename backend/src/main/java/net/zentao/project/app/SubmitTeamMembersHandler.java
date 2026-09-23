@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import net.zentao.org.api.AccountApi;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.i18n.MessageResolver;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.project.domain.TeamMember;
 import net.zentao.project.domain.TeamMemberRepository;
@@ -36,12 +37,16 @@ public class SubmitTeamMembersHandler {
   private final ProjectQueryService projectQueryService;
   private final AccountApi accountApi;
 
+  private final MessageResolver messages;
+
   public SubmitTeamMembersHandler(TeamMemberRepository repository, TeamMemberQueryService queryService,
-      ProjectQueryService projectQueryService, AccountApi accountApi) {
+      ProjectQueryService projectQueryService, AccountApi accountApi,
+      MessageResolver messages) {
     this.repository = repository;
     this.queryService = queryService;
     this.projectQueryService = projectQueryService;
     this.accountApi = accountApi;
+    this.messages = messages;
   }
 
   public record TeamMemberInput(String account, String role, LocalDate joinDate, Integer days, BigDecimal hours,
@@ -75,12 +80,12 @@ public class SubmitTeamMembersHandler {
     for (TeamMemberInput row : command.members()) {
       String account = row.account();
       if (account == null || account.isBlank()) {
-        results.add(failed(account, "account 必填"));
+        results.add(failed(account, messages.forRequest("team.error.accountRequired")));
         continue;
       }
       targetAccounts.add(account);
       if (!seen.add(account)) {
-        results.add(failed(account, "account 重复"));
+        results.add(failed(account, messages.forRequest("team.error.accountDuplicated")));
         continue;
       }
       String error = validate(row, missing, daysLimit);
@@ -99,22 +104,22 @@ public class SubmitTeamMembersHandler {
     return new TeamMemberSubmitResult(results);
   }
 
-  private static String validate(TeamMemberInput row, Set<String> missing, int daysLimit) {
+  private String validate(TeamMemberInput row, Set<String> missing, int daysLimit) {
     if (missing.contains(row.account())) {
-      return "账号不存在";
+      return messages.forRequest("team.error.accountMissing");
     }
     if (row.role() != null && row.role().length() > MAX_ROLE_LENGTH) {
-      return "role 超长";
+      return messages.forRequest("team.error.roleTooLong");
     }
     if (row.days() != null && row.days() < 0) {
-      return "days 不能为负";
+      return messages.forRequest("team.error.daysNegative");
     }
     if (daysLimit >= 0 && row.days() != null && row.days() > daysLimit) {
-      return "days 超出所在项目可用天数";
+      return messages.forRequest("team.error.daysExceedLimit");
     }
     if (row.hours() != null && (row.hours().signum() < 0 || row.hours().compareTo(MAX_DAILY_HOURS) > 0
         || row.hours().stripTrailingZeros().scale() > 1)) {
-      return "hours 超出 0–24 或小数位超 1";
+      return messages.forRequest("team.error.hoursInvalid");
     }
     return null;
   }

@@ -1,11 +1,22 @@
 package net.zentao.product.infra;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import net.zentao.platform.audit.AuditCatalog;
+import net.zentao.platform.audit.AuditCategory;
+import net.zentao.platform.audit.AuditLevel;
+import net.zentao.platform.audit.AuditSnapshotRegistry;
 import net.zentao.platform.meta.MetaRegistry;
 import net.zentao.platform.meta.MetaView;
 import net.zentao.platform.rbac.PrivilegeCatalog;
 import net.zentao.platform.workflow.WorkflowRegistry;
+import net.zentao.product.domain.BranchRepository;
+import net.zentao.product.domain.BuildRepository;
+import net.zentao.product.domain.CategoryRepository;
+import net.zentao.product.domain.PlanRepository;
+import net.zentao.product.domain.ProductRepository;
+import net.zentao.product.domain.ReleaseRepository;
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -16,7 +27,10 @@ import org.springframework.context.annotation.Configuration;
 public class ProductRegistrar {
 
   public ProductRegistrar(MetaRegistry metaRegistry, PrivilegeCatalog privilegeCatalog,
-      WorkflowRegistry workflowRegistry) {
+      WorkflowRegistry workflowRegistry, ProductRepository productRepository,
+      BranchRepository branchRepository, BuildRepository buildRepository, CategoryRepository categoryRepository,
+      PlanRepository planRepository, ReleaseRepository releaseRepository, AuditCatalog auditCatalog,
+      AuditSnapshotRegistry auditSnapshots) {
     privilegeCatalog.register("product", List.of(
         "product-view", "product-create", "product-edit", "product-close", "product-activate", "product-delete"));
     privilegeCatalog.register("branch", List.of("branch-manage", "branch-delete"));
@@ -152,5 +166,142 @@ public class ProductRegistrar {
         new MetaView.MetaList(List.of("id", "name", "branchId", "buildDate", "builder"), "-id"),
         List.of(),
         Map.of()));
+
+    // ── 审计分级（T10 / VISION 事项 4 第 4 行「业务增删改 → 对象级 + 关键字段 diff」）──
+    // 分类 + 关键字段（@AuditDiff 留空时回落这里，字段名必须与下面 provider 的 Map 键同名）；
+    // create 无旧值可比、关系类动作对象自身关键字段不变，两者只记「发生了」
+    auditCatalog.register("product-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("product-update", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "code", "type", "acl", "whitelist", "programId", "po", "qd", "rd"), false);
+    auditCatalog.register("product-close", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("product-activate", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("product-delete", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("name", "status"), false);
+
+    auditCatalog.register("branch-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("branch-update", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("name", "sort"), false);
+    auditCatalog.register("branch-close", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("branch-activate", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("branch-set-default", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("branch-delete", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "isDefault", "status"), false);
+
+    auditCatalog.register("build-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("build-update", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "branchId", "buildDate", "builder"), false);
+    auditCatalog.register("build-delete", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "branchId", "buildDate", "builder"), false);
+    auditCatalog.register("build-link", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("build-unlink", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+
+    auditCatalog.register("category-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("category-update", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "parentId", "owner", "sort"), false);
+    auditCatalog.register("category-delete", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "type", "owner"), false);
+
+    auditCatalog.register("plan-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("plan-update", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("title", "branchId", "parentId", "beginDate", "endDate"), false);
+    auditCatalog.register("plan-start", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("plan-finish", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("plan-close", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("status", "closedReason"), false);
+    auditCatalog.register("plan-activate", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("plan-delete", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("title", "status"), false);
+    auditCatalog.register("plan-link", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("plan-unlink", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+
+    auditCatalog.register("release-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("release-update", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "branchId", "buildId", "releaseDate", "isMilestone"), false);
+    auditCatalog.register("release-terminate", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("release-delete", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("name", "status"), false);
+    auditCatalog.register("release-link", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("release-unlink", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+
+    // 快照 provider：**每次返回新 Map**（框架留着 before 再取 after 比对，同一个可变 Map 会让 diff 恒为空）；
+    // 字段用 LinkedHashMap 装（Map.of 不收 null，而 po/rd/owner/buildId 这类字段可以为空）
+    auditSnapshots.register("product", productId -> productRepository.findActiveById(productId)
+        .map(product -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("name", product.name());
+          snapshot.put("code", product.code());
+          snapshot.put("type", product.type());
+          snapshot.put("status", product.status());
+          snapshot.put("acl", product.acl());
+          snapshot.put("whitelist", product.whitelist());
+          snapshot.put("programId", product.programId());
+          snapshot.put("po", product.po());
+          snapshot.put("qd", product.qd());
+          snapshot.put("rd", product.rd());
+          return snapshot;
+        })
+        .orElse(null));
+
+    auditSnapshots.register("branch", branchId -> branchRepository.findActiveById(branchId)
+        .map(branch -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("name", branch.name());
+          snapshot.put("productId", branch.productId());
+          snapshot.put("isDefault", branch.isDefault());
+          snapshot.put("status", branch.status());
+          snapshot.put("sort", branch.sort());
+          return snapshot;
+        })
+        .orElse(null));
+
+    auditSnapshots.register("build", buildId -> buildRepository.findActiveById(buildId)
+        .map(build -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("name", build.name());
+          snapshot.put("branchId", build.branchId());
+          snapshot.put("projectId", build.projectId());
+          snapshot.put("buildDate", build.buildDate());
+          snapshot.put("builder", build.builder());
+          return snapshot;
+        })
+        .orElse(null));
+
+    auditSnapshots.register("category", categoryId -> categoryRepository.findActiveById(categoryId)
+        .map(category -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("name", category.name());
+          snapshot.put("type", category.type());
+          snapshot.put("productId", category.productId());
+          snapshot.put("parentId", category.parentId());
+          snapshot.put("owner", category.owner());
+          snapshot.put("sort", category.sort());
+          return snapshot;
+        })
+        .orElse(null));
+
+    auditSnapshots.register("plan", planId -> planRepository.findActiveById(planId)
+        .map(plan -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("title", plan.title());
+          snapshot.put("productId", plan.productId());
+          snapshot.put("branchId", plan.branchId());
+          snapshot.put("parentId", plan.parentId());
+          snapshot.put("status", plan.status());
+          snapshot.put("beginDate", plan.beginDate());
+          snapshot.put("endDate", plan.endDate());
+          snapshot.put("closedReason", plan.closedReason());
+          return snapshot;
+        })
+        .orElse(null));
+
+    auditSnapshots.register("release", releaseId -> releaseRepository.findActiveById(releaseId)
+        .map(release -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("name", release.name());
+          snapshot.put("productId", release.productId());
+          snapshot.put("branchId", release.branchId());
+          snapshot.put("buildId", release.buildId());
+          snapshot.put("status", release.status());
+          snapshot.put("releaseDate", release.releaseDate());
+          snapshot.put("isMilestone", release.isMilestone());
+          return snapshot;
+        })
+        .orElse(null));
   }
 }

@@ -74,8 +74,14 @@ class AccountActionTest {
   }
 
   private String action(String cookieValue, long id, String action, String body) throws Exception {
+    if ("delete".equals(action)) {
+      // T66/DB-07：删除动作统一走 DELETE /accounts/{id}（comment 可省，此处不传）
+      return send("DELETE", "/api/v1/accounts/" + id, null, cookieValue, null).body();
+    }
     return send("POST", "/api/v1/accounts/" + id + "/" + action, body, cookieValue, null).body();
-  }  @Test
+  }
+
+  @Test
   @DisplayName("状态机：disable→enable；disabled 再 disable → 42202；停用/删除自己或 admin → 42203")
   void stateMachineAndGuards() throws Exception {
     assertTrue(action(adminCookie, plainId, "disable", "{}").contains("\"status\":\"disabled\""), "停用");

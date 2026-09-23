@@ -8,6 +8,7 @@ import java.util.Set;
 import net.zentao.org.api.AccountApi;
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.CategoryView;
 import net.zentao.product.api.ProductApi;
@@ -75,7 +76,7 @@ public class CategoryHandlers {
     long branchId = command.branchId() == null ? 0 : command.branchId();
     requireSameTree(productId, command.type(), parentId, 0);
     if (branchId != 0 && branchRepository.findActiveById(branchId).filter(b -> b.productId() == productId).isEmpty()) {
-      throw ApiException.guardNotSatisfied("分支不属于该产品。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "category.guard.branchMismatch");
     }
     Instant now = Instant.now();
     Category category = repository.insert(new Category(0, productId, branchId, parentId, command.type(),
@@ -89,7 +90,7 @@ public class CategoryHandlers {
   public CategoryView update(SessionPrincipal actor, long categoryId, CategoryUpdateRequest command) {
     Category category = require(actor, categoryId);
     if (command.lockVersion() == null || command.lockVersion() != category.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     Map<String, String> errors = new java.util.LinkedHashMap<>();
     if (command.name() != null) {
@@ -108,7 +109,7 @@ public class CategoryHandlers {
     if (command.parentId() != null) {
       long parentId = command.parentId();
       if (parentId == categoryId) {
-        throw ApiException.guardNotSatisfied("节点不能作为自身父级。");
+        throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "category.guard.selfParent");
       }
       requireSameTree(category.productId(), category.type(), parentId, categoryId);
     }
@@ -128,13 +129,13 @@ public class CategoryHandlers {
   }
 
   private Category require(SessionPrincipal actor, long categoryId) {
-    Category category = repository.findActiveById(categoryId).orElseThrow(() -> ApiException.notFound("分类"));
+    Category category = repository.findActiveById(categoryId).orElseThrow(() -> ApiException.notFound("entity.category"));
     ProductGuard.requireVisible(productRepository, productApi, actor, category.productId());
     return category;
   }
 
   private Category save(Category category) {
-    return repository.update(category).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+    return repository.update(category).orElseThrow(() -> ApiException.lockConflict());
   }
 
   /** parentId 必须为空或「同产品同 type」节点（跨产品/跨 type → 42203）；编辑时禁成环。 */
@@ -143,16 +144,16 @@ public class CategoryHandlers {
       return;
     }
     Category parent = repository.findActiveById(parentId)
-        .orElseThrow(() -> ApiException.guardNotSatisfied("父节点不存在。"));
+        .orElseThrow(() -> ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "category.guard.parentMissing"));
     if (parent.productId() != productId || !type.equals(parent.type())) {
-      throw ApiException.guardNotSatisfied("父节点必须属于同产品同类型。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "category.guard.parentMismatch");
     }
     if (selfId != 0) {
       List<Category> tree = repository.findByProductAndType(productId, type);
       boolean descendant = CategoryTree.selfAndDescendants(tree, selfId).stream()
           .anyMatch(node -> node.id() == parentId);
       if (descendant) {
-        throw ApiException.guardNotSatisfied("父节点不能是自身或其子孙。");
+        throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "category.guard.parentIsDescendant");
       }
     }
   }

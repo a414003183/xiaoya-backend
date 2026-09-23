@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.i18n.MessageResolver;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.ProductApi;
 import net.zentao.quality.domain.TestCase;
@@ -25,11 +26,16 @@ public class ImportFromLibraryHandler {
   private final ProductApi productApi;
   private final ActivityRecorder activityRecorder;
 
+
+  private final MessageResolver messages;
+
   public ImportFromLibraryHandler(TestCaseRepository repository, ProductApi productApi,
-      ActivityRecorder activityRecorder) {
+      ActivityRecorder activityRecorder,
+      MessageResolver messages) {
     this.repository = repository;
     this.productApi = productApi;
     this.activityRecorder = activityRecorder;
+    this.messages = messages;
   }
 
   public record TestCaseImportRequest(
@@ -81,7 +87,8 @@ public class ImportFromLibraryHandler {
           null,
           null,
           0));
-      activityRecorder.record(actor.account(), "testCase", copy.id(), "created", null, "用例库导入");
+      activityRecorder.record(actor.account(), "testCase", copy.id(), "created", null,
+          messages.plain("activity.remark.caseLibraryImport", null));
       imported += 1;
     }
     return new TestCaseImportResult(imported);

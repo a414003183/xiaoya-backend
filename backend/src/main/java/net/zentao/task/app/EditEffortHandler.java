@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.util.List;
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.rbac.DataScope;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.project.api.ExecutionApi;
@@ -43,10 +44,10 @@ public class EditEffortHandler {
 
   @Transactional
   public EffortView handle(SessionPrincipal actor, long effortId, EffortUpdateRequest command) {
-    Effort effort = effortRepository.findActiveById(effortId).orElseThrow(() -> ApiException.notFound("工时"));
+    Effort effort = effortRepository.findActiveById(effortId).orElseThrow(() -> ApiException.notFound("entity.effort"));
     Task task = TaskGuard.requireReadable(taskRepository, executionApi, actor, effort.taskId());
     if (!dataScope.isSuperAdmin(actor) && !actor.account().equals(effort.account())) {
-      throw ApiException.forbidden("只能编辑本人登记的工时。");
+      throw ApiException.keyed(ErrorCode.FORBIDDEN, "effort.guard.editOwnOnly");
     }
     TaskFields.hours("consumedHours", command == null ? null : command.consumedHours(), true);
     TaskFields.hours("leftHours", command == null ? null : command.leftHours(), false);

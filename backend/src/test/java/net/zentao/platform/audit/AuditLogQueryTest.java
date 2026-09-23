@@ -33,7 +33,7 @@ class AuditLogQueryTest extends ApiTestSupport {
     JsonNode row = list.get("items").get(0);
     assertEquals(traceId, row.get("traceId").asText(), "行应与响应的 X-Trace-Id 对得上");
     assertEquals("admin", row.get("account").asText());
-    assertEquals("patch /api/v1/products/{productId}", row.get("action").asText());
+    assertEquals("product-update", row.get("action").asText());
     assertEquals("product", row.get("objectType").asText());
     assertEquals(productId, row.get("objectId").asLong());
     assertFalse(row.get("ip").isNull(), "写请求应记来源 IP：" + list);

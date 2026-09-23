@@ -77,7 +77,7 @@ public class TodoActionHandler {
   /** 软删（A-07，workspace 卡 §5 DELETE）：仅创建人/负责人/超管可删，他人 → 40302。 */
   @Transactional
   public void delete(SessionPrincipal actor, long todoId) {
-    Todo todo = repository.findActiveById(todoId).orElseThrow(() -> ApiException.notFound("待办"));
+    Todo todo = repository.findActiveById(todoId).orElseThrow(() -> ApiException.notFound("entity.todo"));
     TodoAccess.requireWritable(actor.account(), todo, dataScope.isSuperAdmin(actor));
     repository.softDelete(todoId);
   }
@@ -88,7 +88,7 @@ public class TodoActionHandler {
 
   private TodoView fire(SessionPrincipal actor, long todoId, String action, String comment, String newAssignee,
       boolean assignToSelf) {
-    Todo todo = repository.findActiveById(todoId).orElseThrow(() -> ApiException.notFound("待办"));
+    Todo todo = repository.findActiveById(todoId).orElseThrow(() -> ApiException.notFound("entity.todo"));
     TodoAccess.requireWritable(actor.account(), todo, dataScope.isSuperAdmin(actor));
     if (newAssignee != null) {
       todo.assignTo(newAssignee);
@@ -96,7 +96,7 @@ public class TodoActionHandler {
     engine.fire(new TodoWorkflowTargets.TodoTarget(todo, actor.account(), assignToSelf), action, comment);
     todo.markUpdatedBy(actor.account());
     Todo saved = repository.update(todo)
-        .orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+        .orElseThrow(() -> ApiException.lockConflict());
     return TodoView.of(saved, titleResolver.resolve(saved));
   }
 }

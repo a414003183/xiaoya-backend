@@ -11,6 +11,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.workspace.domain.Todo;
 import net.zentao.workspace.domain.TodoRepository;
 import org.springframework.stereotype.Component;
@@ -78,7 +79,7 @@ public class TodoRepositoryImpl implements TodoRepository {
 
   @Override
   public void softDelete(long id) {
-    Db.updateByCondition("todo", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
+    SoftDeletes.apply("todo", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
   }
 
   private Todo toDomain(TodoPO po) {

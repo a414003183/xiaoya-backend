@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 import net.zentao.org.api.AccountApi;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.requirement.domain.Story;
 import net.zentao.requirement.domain.StoryRepository;
 
@@ -153,7 +154,7 @@ final class StoryFields {
       return;
     }
     if (parentId == story.id()) {
-      throw ApiException.guardNotSatisfied("父需求不能指向自身。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "story.guard.parentSelf");
     }
     StoryFields.validateReferences(story.productId(), parentId, List.of(), repository);
     // 成环检测：从目标父沿链上溯，遇自身即环（epic 链短，逐级查库即可）
@@ -161,7 +162,7 @@ final class StoryFields {
     Set<Long> visited = new HashSet<>();
     while (cursor != null && cursor != 0) {
       if (cursor == story.id()) {
-        throw ApiException.guardNotSatisfied("父需求不能形成环。");
+        throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "story.guard.parentCycle");
       }
       if (!visited.add(cursor)) {
         return; // 脏数据自环保护：链上既有环与本次修改无关

@@ -2,6 +2,8 @@ package net.zentao.product.infra.web;
 
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.CommentRequest;
@@ -44,6 +46,7 @@ public class BranchController {
   @PostMapping("/products/{productId}/branches")
   @Operation(operationId = "createBranch")
   @RequirePrivilege("branch-manage")
+  @Audit(action = "branch-create", objectType = "branch")
   public DataEnvelope<BranchView> create(@PathVariable long productId,
       @RequestBody BranchHandlers.BranchCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.create(resolver.resolve(request), productId, body));
@@ -52,14 +55,18 @@ public class BranchController {
   @PatchMapping("/branches/{branchId}")
   @Operation(operationId = "updateBranch")
   @RequirePrivilege("branch-manage")
+  @Audit(action = "branch-update", objectType = "branch")
+  @AuditDiff(objectType = "branch")
   public DataEnvelope<BranchView> update(@PathVariable long branchId,
-      @RequestBody BranchHandlers.BranchUpdateRequest body, HttpServletRequest request) {
+      @jakarta.validation.Valid @RequestBody BranchHandlers.BranchUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.update(resolver.resolve(request), branchId, body));
   }
 
   @PostMapping("/branches/{branchId}/close")
   @Operation(operationId = "closeBranch")
   @RequirePrivilege("branch-manage")
+  @Audit(action = "branch-close", objectType = "branch")
+  @AuditDiff(objectType = "branch")
   public DataEnvelope<BranchView> close(@PathVariable long branchId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.close(resolver.resolve(request), branchId, comment(body)));
@@ -68,6 +75,8 @@ public class BranchController {
   @PostMapping("/branches/{branchId}/activate")
   @Operation(operationId = "activateBranch")
   @RequirePrivilege("branch-manage")
+  @Audit(action = "branch-activate", objectType = "branch")
+  @AuditDiff(objectType = "branch")
   public DataEnvelope<BranchView> activate(@PathVariable long branchId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.activate(resolver.resolve(request), branchId, comment(body)));
@@ -76,6 +85,7 @@ public class BranchController {
   @PostMapping("/branches/{branchId}/set-default")
   @Operation(operationId = "setDefaultBranch")
   @RequirePrivilege("branch-manage")
+  @Audit(action = "branch-set-default", objectType = "branch")
   public DataEnvelope<BranchView> setDefault(@PathVariable long branchId, HttpServletRequest request) {
     return DataEnvelope.of(handlers.setDefault(resolver.resolve(request), branchId));
   }
@@ -83,6 +93,8 @@ public class BranchController {
   @DeleteMapping("/branches/{branchId}")
   @Operation(operationId = "deleteBranch")
   @RequirePrivilege("branch-delete")
+  @Audit(action = "branch-delete", objectType = "branch")
+  @AuditDiff(objectType = "branch")
   public DataEnvelope<Void> delete(@PathVariable long branchId, HttpServletRequest request) {
     handlers.delete(resolver.resolve(request), branchId);
     return DataEnvelope.empty();

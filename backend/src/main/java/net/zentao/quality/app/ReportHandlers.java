@@ -8,6 +8,7 @@ import java.util.Map;
 import net.zentao.org.api.AccountApi;
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.ProductApi;
 import net.zentao.project.api.ExecutionApi;
@@ -68,9 +69,9 @@ public class ReportHandlers {
   }
 
   Report require(SessionPrincipal actor, long reportId) {
-    Report report = repository.findActiveById(reportId).orElseThrow(() -> ApiException.notFound("测试报告"));
+    Report report = repository.findActiveById(reportId).orElseThrow(() -> ApiException.notFound("entity.report"));
     if (!productApi.canAccess(actor, report.productId())) {
-      throw ApiException.dataForbidden("无权访问该测试报告。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "report.guard.forbidden");
     }
     return report;
   }
@@ -106,7 +107,7 @@ public class ReportHandlers {
   public ReportView update(SessionPrincipal actor, long reportId, ReportUpdateRequest command) {
     Report report = require(actor, reportId);
     if (command.lockVersion() == null || command.lockVersion() != report.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     validate(command.title(),
         command.beginDate() == null ? report.beginDate() : command.beginDate(),
@@ -119,7 +120,7 @@ public class ReportHandlers {
         command.owner(), command.content());
     report.markUpdatedBy(actor.account());
     Report saved = repository.update(report)
-        .orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+        .orElseThrow(() -> ApiException.lockConflict());
     // testRunIds 变更 → 重指回填（旧集合里不再包含的清空，新集合落 reportId）
     for (TestRun run : runRepository.findActiveByExecution(saved.executionId())) {
       if (saved.testRunIds().contains(run.id())) {

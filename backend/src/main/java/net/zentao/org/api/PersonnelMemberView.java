@@ -5,6 +5,6 @@ public record PersonnelMemberView(
     String account,
     String realName,
     Long departmentId,
-    String role,
+    java.util.List<Long> roleIds,
     long openTaskCount,
     long unresolvedBugCount) {}

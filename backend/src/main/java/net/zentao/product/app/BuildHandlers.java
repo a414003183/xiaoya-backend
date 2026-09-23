@@ -9,6 +9,7 @@ import java.util.Map;
 import net.zentao.org.api.AccountApi;
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.BuildView;
 import net.zentao.product.api.ProductApi;
@@ -52,11 +53,15 @@ public class BuildHandlers {
   }
 
   public record BuildCreateRequest(Long branchId, Long executionId, Long projectId,
-      @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name, String scmPath,
-      String filePath, LocalDate buildDate, String builder, List<Long> storyIds, List<Long> bugIds,
+      @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String name,
+      @jakarta.validation.constraints.Size(max = 255) String scmPath,
+      @jakarta.validation.constraints.Size(max = 255) String filePath,
+      LocalDate buildDate, String builder, List<Long> storyIds, List<Long> bugIds,
       String description) {}
 
-  public record BuildUpdateRequest(String name, Long branchId, String scmPath, String filePath, LocalDate buildDate,
+  public record BuildUpdateRequest(String name, Long branchId,
+      @jakarta.validation.constraints.Size(max = 255) String scmPath,
+      @jakarta.validation.constraints.Size(max = 255) String filePath, LocalDate buildDate,
       String builder, Long projectId, String description,
       @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Integer lockVersion) {}
 
@@ -64,7 +69,6 @@ public class BuildHandlers {
   public BuildView create(SessionPrincipal actor, long productId, BuildCreateRequest command) {
     ProductGuard.requireVisible(productRepository, productApi, actor, productId);
     validateName(command.name());
-    requirePaths(command.scmPath(), command.filePath());
     List<Long> storyIds = distinct(command.storyIds());
     requireStoriesInProduct(productId, storyIds);
     List<Long> bugIds = distinct(command.bugIds());
@@ -87,12 +91,11 @@ public class BuildHandlers {
   public BuildView update(SessionPrincipal actor, long buildId, BuildUpdateRequest command) {
     Build build = require(actor, buildId);
     if (command.lockVersion() == null || command.lockVersion() != build.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     if (command.name() != null) {
       validateName(command.name());
     }
-    requirePaths(command.scmPath(), command.filePath());
     if (command.builder() != null && !accountApi.missingAccounts(List.of(command.builder())).isEmpty()) {
       throw ApiException.validation(Map.of("builder", "notFound"));
     }
@@ -107,19 +110,19 @@ public class BuildHandlers {
   public void delete(SessionPrincipal actor, long buildId) {
     require(actor, buildId);
     if (releaseRepository.existsByBuildId(buildId)) {
-      throw ApiException.guardNotSatisfied("构建已被发布引用，不能删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "build.guard.releaseLinked");
     }
     repository.softDelete(buildId);
   }
 
   Build require(SessionPrincipal actor, long buildId) {
-    Build build = repository.findActiveById(buildId).orElseThrow(() -> ApiException.notFound("构建"));
+    Build build = repository.findActiveById(buildId).orElseThrow(() -> ApiException.notFound("entity.build"));
     ProductGuard.requireVisible(productRepository, productApi, actor, build.productId());
     return build;
   }
 
   Build save(Build build) {
-    return repository.update(build).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+    return repository.update(build).orElseThrow(() -> ApiException.lockConflict());
   }
 
   void requireStoriesInProduct(long productId, List<Long> storyIds) {
@@ -128,25 +131,17 @@ public class BuildHandlers {
     }
     List<StoryView> found = storyApi.findByIds(productId, storyIds);
     if (found.size() != storyIds.size()) {
-      throw ApiException.guardNotSatisfied("需求不存在或不属于该产品。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "product.guard.storyNotInProduct");
     }
   }
 
+  /** name 语义是「trim 后必填/不超 150」且 create/update 共用（update null=不改）——跨字段口径，不注解化。 */
   private static void validateName(String name) {
     if (name == null || name.trim().isEmpty()) {
       throw ApiException.validation(Map.of("name", "required"));
     }
     if (name.trim().length() > 150) {
       throw ApiException.validation(Map.of("name", "maxLength"));
-    }
-  }
-
-  private static void requirePaths(String scmPath, String filePath) {
-    if (scmPath != null && scmPath.length() > 255) {
-      throw ApiException.validation(Map.of("scmPath", "maxLength"));
-    }
-    if (filePath != null && filePath.length() > 255) {
-      throw ApiException.validation(Map.of("filePath", "maxLength"));
     }
   }
 

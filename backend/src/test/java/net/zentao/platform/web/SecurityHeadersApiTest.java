@@ -63,4 +63,17 @@ class SecurityHeadersApiTest extends ApiTestSupport {
       response.body().close();
     }
   }
+
+  @Test
+  @DisplayName("阀未装（默认）：伪造 X-Forwarded-Proto: https 也不发 HSTS（不采信自报协议）")
+  void spoofedForwardedProtoDoesNotTriggerHsts() throws Exception {
+    HttpResponse<String> response = http.send(
+        HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api/v1/me"))
+            .header("X-Requested-With", "fetch")
+            .header("X-Forwarded-Proto", "https")
+            .GET()
+            .build(),
+        HttpResponse.BodyHandlers.ofString());
+    assertEquals("", response.headers().firstValue("Strict-Transport-Security").orElse(""));
+  }
 }

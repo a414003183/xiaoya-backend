@@ -2,6 +2,8 @@ package net.zentao.project.infra.web;
 
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.CommentRequest;
@@ -77,6 +79,7 @@ public class ProgramController {
   @PostMapping("/programs")
   @Operation(operationId = "createProgram")
   @RequirePrivilege("program-create")
+  @Audit(action = "program-create", objectType = "program")
   public DataEnvelope<ProjectView> create(@RequestBody ProjectCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(createHandler.handleProgram(resolver.resolve(request), body));
   }
@@ -91,6 +94,8 @@ public class ProgramController {
   @PatchMapping("/programs/{programId}")
   @Operation(operationId = "updateProgram")
   @RequirePrivilege("program-edit")
+  @Audit(action = "program-update", objectType = "program")
+  @AuditDiff(objectType = "program")
   public DataEnvelope<ProjectView> update(@PathVariable long programId, @RequestBody ProjectUpdateRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(updateHandler.handle(resolver.resolve(request), programId, body));
@@ -99,6 +104,8 @@ public class ProgramController {
   @DeleteMapping("/programs/{programId}")
   @Operation(operationId = "deleteProgram")
   @RequirePrivilege("program-delete")
+  @Audit(action = "program-delete", objectType = "program")
+  @AuditDiff(objectType = "program")
   public DataEnvelope<Void> delete(@PathVariable long programId, HttpServletRequest request) {
     deleteHandler.handle(resolver.resolve(request), programId, "program");
     return DataEnvelope.empty();
@@ -144,14 +151,16 @@ public class ProgramController {
   @PostMapping("/programs/{programId}/stakeholders")
   @Operation(operationId = "addProgramStakeholder")
   @RequirePrivilege("stakeholder-manage")
+  @Audit(action = "program-stakeholder-add", objectType = "program")
   public DataEnvelope<StakeholderQueryService.StakeholderView> addStakeholder(@PathVariable long programId,
-      @RequestBody AddStakeholderHandler.StakeholderCreateRequest body, HttpServletRequest request) {
+      @jakarta.validation.Valid @RequestBody AddStakeholderHandler.StakeholderCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(addStakeholderHandler.handle(resolver.resolve(request), "program", programId, body));
   }
 
   @DeleteMapping("/programs/{programId}/stakeholders/{stakeholderId}")
   @Operation(operationId = "removeProgramStakeholder")
   @RequirePrivilege("stakeholder-manage")
+  @Audit(action = "program-stakeholder-remove", objectType = "program")
   public DataEnvelope<Void> removeStakeholder(@PathVariable long programId, @PathVariable long stakeholderId,
       HttpServletRequest request) {
     removeStakeholderHandler.handle(resolver.resolve(request), "program", programId, stakeholderId);
@@ -161,6 +170,8 @@ public class ProgramController {
   @PostMapping("/programs/{programId}/start")
   @Operation(operationId = "startProgram")
   @RequirePrivilege("program-start")
+  @Audit(action = "program-start", objectType = "program")
+  @AuditDiff(objectType = "program")
   public DataEnvelope<ProjectView> start(@PathVariable long programId,
       @RequestBody(required = false) ProjectStartRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.start(resolver.resolve(request), programId, "program", body));
@@ -169,6 +180,8 @@ public class ProgramController {
   @PostMapping("/programs/{programId}/suspend")
   @Operation(operationId = "suspendProgram")
   @RequirePrivilege("program-suspend")
+  @Audit(action = "program-suspend", objectType = "program")
+  @AuditDiff(objectType = "program")
   public DataEnvelope<ProjectView> suspend(@PathVariable long programId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.suspend(resolver.resolve(request), programId, "program", comment(body)));
@@ -176,6 +189,8 @@ public class ProgramController {
   @PostMapping("/programs/{programId}/resume")
   @Operation(operationId = "resumeProgram")
   @RequirePrivilege("program-resume")
+  @Audit(action = "program-resume", objectType = "program")
+  @AuditDiff(objectType = "program")
   public DataEnvelope<ProjectView> resume(@PathVariable long programId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.resume(resolver.resolve(request), programId, "program", comment(body)));
@@ -183,6 +198,8 @@ public class ProgramController {
   @PostMapping("/programs/{programId}/delay")
   @Operation(operationId = "delayProgram")
   @RequirePrivilege("program-delay")
+  @Audit(action = "program-delay", objectType = "program")
+  @AuditDiff(objectType = "program")
   public DataEnvelope<ProjectView> delay(@PathVariable long programId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.delay(resolver.resolve(request), programId, "program", comment(body)));
@@ -190,6 +207,8 @@ public class ProgramController {
   @PostMapping("/programs/{programId}/close")
   @Operation(operationId = "closeProgram")
   @RequirePrivilege("program-close")
+  @Audit(action = "program-close", objectType = "program")
+  @AuditDiff(objectType = "program")
   public DataEnvelope<ProjectView> close(@PathVariable long programId,
       @RequestBody(required = false) ProjectCloseRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.close(resolver.resolve(request), programId, "program", body));
@@ -198,6 +217,8 @@ public class ProgramController {
   @PostMapping("/programs/{programId}/activate")
   @Operation(operationId = "activateProgram")
   @RequirePrivilege("program-activate")
+  @Audit(action = "program-activate", objectType = "program")
+  @AuditDiff(objectType = "program")
   public DataEnvelope<ProjectView> activate(@PathVariable long programId,
       @RequestBody(required = false) ProjectActivateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.activate(resolver.resolve(request), programId, "program", body));

@@ -64,10 +64,10 @@ class StoryBatchTest extends net.zentao.H2TestSupport {
     if (restrictedGroupId != 0) {
       return restrictedGroupId;
     }
-    HttpResponse<String> group = send("POST", "/api/v1/groups", "{\"name\":\"需求只读组\"}", adminCookie);
+    HttpResponse<String> group = send("POST", "/api/v1/roles", "{\"name\":\"需求只读组\"}", adminCookie);
     assertEquals(200, group.statusCode(), group.body());
     restrictedGroupId = json.readTree(group.body()).at("/data/id").asLong();
-    send("PUT", "/api/v1/groups/" + restrictedGroupId + "/privileges",
+    send("PUT", "/api/v1/roles/" + restrictedGroupId + "/privileges",
         "{\"codes\":[\"product-view\",\"story-view\"]}", adminCookie);
     return restrictedGroupId;
   }
@@ -128,7 +128,7 @@ class StoryBatchTest extends net.zentao.H2TestSupport {
 
     // 只读账号：story-view 有、story-close 无 → 40301
     send("POST", "/api/v1/accounts",
-        "{\"account\":\"batch-reader\",\"password\":\"secret123\",\"realName\":\"只读者\",\"groupIds\":["
+        "{\"account\":\"batch-reader\",\"password\":\"secret123\",\"realName\":\"只读者\",\"roleIds\":["
             + restrictedGroup() + "]}",
         adminCookie);
     String readerCookie = loginAs("batch-reader", "secret123");

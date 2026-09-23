@@ -10,6 +10,7 @@ import java.util.Set;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.rbac.DataScope;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.ProductApi;
@@ -101,8 +102,7 @@ public class ProductQueryService {
     List<ProductView> items = repository.queryPage(query, filters.offset(), filters.limit()).stream()
         .map(ProductView::of)
         .toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, COLUMNS::get, value -> java.util.Optional.empty(), injected);
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), COLUMNS::get, value -> java.util.Optional.empty(), injected);
     return new ProductList(items, repository.countByQuery(countQuery));
   }
 
@@ -110,7 +110,7 @@ public class ProductQueryService {
     if (q == null || q.isBlank()) {
       return null;
     }
-    String like = "%" + q + "%";
-    return new QueryColumn("name").like(like).or(new QueryColumn("code").like(like));
+    String like = LikePatterns.contains(q);
+    return new QueryColumn("name").likeRaw(like).or(new QueryColumn("code").likeRaw(like));
   }
 }

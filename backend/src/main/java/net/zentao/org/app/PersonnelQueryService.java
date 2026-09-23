@@ -17,6 +17,7 @@ import net.zentao.task.api.TaskApi;
 import net.zentao.org.domain.Account;
 import net.zentao.org.domain.AccountRepository;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import org.springframework.stereotype.Component;
 
 /**
@@ -52,7 +53,7 @@ public class PersonnelQueryService {
 
     List<PersonnelMemberView> items = accounts.stream()
         .map(account -> new PersonnelMemberView(account.account(), account.realName(), account.departmentId(),
-            account.role(), openTasks.getOrDefault(account.account(), 0L),
+            accountRepository.roleIdsOf(account.id()), openTasks.getOrDefault(account.account(), 0L),
             unresolvedBugs.getOrDefault(account.account(), 0L)))
         .toList();
     return new PersonnelMemberList(page(items, params), items.size());
@@ -124,23 +125,23 @@ public class PersonnelQueryService {
   private static LocalDate[] requiredRange(Map<String, String[]> params) {
     String value = first(params, "filters[date]");
     if (value == null || !value.contains("..")) {
-      throw ApiException.badRequest("工作量统计必须传 filters[date]=起始..结束。");
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "personnel.workload.dateRequired");
     }
     int separator = value.indexOf("..");
     String from = value.substring(0, separator);
     String to = value.substring(separator + 2);
     if (from.isBlank() || to.isBlank()) {
-      throw ApiException.badRequest("工作量统计的日期区间两端都不能为空。");
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "personnel.workload.dateEndsEmpty");
     }
     try {
       LocalDate start = LocalDate.parse(from);
       LocalDate end = LocalDate.parse(to);
       if (end.isBefore(start)) {
-        throw ApiException.badRequest("工作量统计的日期区间起止倒置。");
+        throw ApiException.keyed(ErrorCode.BAD_REQUEST, "personnel.workload.dateReversed");
       }
       return new LocalDate[] {start, end};
     } catch (java.time.format.DateTimeParseException e) {
-      throw ApiException.badRequest("日期格式必须为 YYYY-MM-DD。");
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "personnel.date.format");
     }
   }
 
@@ -164,7 +165,7 @@ public class PersonnelQueryService {
     try {
       return Math.max(Integer.parseInt(value), 1);
     } catch (NumberFormatException e) {
-      throw ApiException.badRequest("参数 " + name + " 必须是整数。");
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "personnel.param.integer", name);
     }
   }
 
@@ -172,7 +173,7 @@ public class PersonnelQueryService {
     try {
       return Long.parseLong(value);
     } catch (NumberFormatException e) {
-      throw ApiException.badRequest("部门 id 必须是整数。");
+      throw ApiException.keyed(ErrorCode.BAD_REQUEST, "personnel.department.idInteger");
     }
   }
 

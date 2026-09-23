@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.i18n.MessageResolver;
 import net.zentao.platform.session.SessionPrincipal;
 import org.springframework.stereotype.Component;
 
@@ -20,9 +21,12 @@ public class BatchCreateTasksHandler {
   private static final int MAX_ITEMS = 50;
 
   private final CreateTaskHandler createHandler;
+  private final MessageResolver messages;
 
-  public BatchCreateTasksHandler(CreateTaskHandler createHandler) {
+  public BatchCreateTasksHandler(CreateTaskHandler createHandler,
+      MessageResolver messages) {
     this.createHandler = createHandler;
+    this.messages = messages;
   }
 
   public record TaskBatchCreateRequest(@Schema(requiredMode = Schema.RequiredMode.REQUIRED)
@@ -49,7 +53,7 @@ public class BatchCreateTasksHandler {
       if (item.parentIndex() != null) {
         Long created = createdIds.get(item.parentIndex());
         if (created == null) {
-          String parentError = failures.getOrDefault(item.parentIndex(), "42201:父行不存在");
+          String parentError = failures.getOrDefault(item.parentIndex(), "42201:" + messages.forRequest("task.batch.parentRowMissing"));
           failures.put(index, parentError);
           results.add(new ResultItem(index, false, null, parentError));
           continue;
@@ -61,8 +65,8 @@ public class BatchCreateTasksHandler {
         createdIds.put(index, id);
         results.add(new ResultItem(index, true, id, null));
       } catch (ApiException e) {
-        failures.put(index, e.errorCode().code() + ":" + e.getMessage());
-        results.add(new ResultItem(index, false, null, e.errorCode().code() + ":" + e.getMessage()));
+        failures.put(index, e.errorCode().code() + ":" + messages.forRequest(e));
+        results.add(new ResultItem(index, false, null, e.errorCode().code() + ":" + messages.forRequest(e)));
       }
     }
     return new TaskBatchCreateResult(results);

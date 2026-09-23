@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import net.zentao.org.api.AccountApi;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.project.api.ProjectApi;
 import net.zentao.project.api.ProjectView;
@@ -48,12 +49,12 @@ public class UpdateProjectHandler {
 
   @Transactional
   public ProjectView handle(SessionPrincipal actor, long projectId, ProjectUpdateRequest command) {
-    Project project = repository.findActiveById(projectId).orElseThrow(() -> ApiException.notFound("项目"));
+    Project project = repository.findActiveById(projectId).orElseThrow(() -> ApiException.notFound("entity.project"));
     if (!projectApi.canAccess(actor, projectId)) {
-      throw ApiException.dataForbidden("无权访问该项目。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "project.guard.forbidden");
     }
     if (command.lockVersion() == null || command.lockVersion() != project.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     requireWritableFields(project.type(), command);
     ProjectFields.validateCode(command.code());
@@ -74,7 +75,7 @@ public class UpdateProjectHandler {
     ProjectFields.validateDates(project.beginDate(), project.endDate());
     project.markUpdatedBy(actor.account());
     Project saved = repository.update(project)
-        .orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+        .orElseThrow(() -> ApiException.lockConflict());
     if (command.whitelist() != null) {
       aclEntryRepository.replace(saved.type(), saved.id(), saved.whitelist());
     }

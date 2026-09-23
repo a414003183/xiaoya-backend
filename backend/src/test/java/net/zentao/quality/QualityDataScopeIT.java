@@ -74,9 +74,9 @@ class QualityDataScopeIT extends MySqlContainerSupport {
   /** 产品查看者组：质量域读权限齐备但**无** library-create/library-edit 之外的写权限。 */
   private void ensureOutsider(String account) throws Exception {
     if (outsiderGroupId == 0) {
-      outsiderGroupId = dataId(send("POST", "/api/v1/groups",
+      outsiderGroupId = dataId(send("POST", "/api/v1/roles",
           "{\"name\":\"IT 质量组 " + System.nanoTime() + "\"}", adminCookie));
-      send("PUT", "/api/v1/groups/" + outsiderGroupId + "/privileges",
+      send("PUT", "/api/v1/roles/" + outsiderGroupId + "/privileges",
           "{\"codes\":[\"bug-view\",\"bug-create\",\"bug-edit\",\"bug-resolve\",\"testcase-view\","
               + "\"testcase-create\",\"suite-view\",\"suite-create\",\"library-view\",\"testrun-view\","
               + "\"report-view\",\"product-view\"]}",
@@ -84,7 +84,7 @@ class QualityDataScopeIT extends MySqlContainerSupport {
     }
     HttpResponse<String> created = send("POST", "/api/v1/accounts",
         "{\"account\":\"" + account + "\",\"password\":\"secret123\",\"realName\":\"" + account
-            + "\",\"groupIds\":[" + outsiderGroupId + "]}",
+            + "\",\"roleIds\":[" + outsiderGroupId + "]}",
         adminCookie);
     assertTrue(created.statusCode() == 200 || created.statusCode() == 422, created.body());
   }

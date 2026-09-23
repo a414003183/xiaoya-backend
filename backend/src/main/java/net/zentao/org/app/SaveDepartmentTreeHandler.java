@@ -7,6 +7,7 @@ import java.util.Map;
 import net.zentao.org.domain.Department;
 import net.zentao.org.domain.DepartmentRepository;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -89,7 +90,7 @@ public class SaveDepartmentTreeHandler {
   private void visit(Department department, String parentPath, int parentGrade, Map<Long, Department> byId,
       List<Long> visiting) {
     if (visiting.contains(department.id())) {
-      throw ApiException.guardNotSatisfied("部门树存在环。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "department.guard.cycle");
     }
     visiting.add(department.id());
     department.relocate(parentPath + department.id() + ",", parentGrade + 1);
@@ -106,7 +107,7 @@ public class SaveDepartmentTreeHandler {
     for (Department department : all) {
       if (department.id() == departmentId) {
         if (newParentId == departmentId || department.isSelfOrDescendant(newParentId)) {
-          throw ApiException.guardNotSatisfied("不能移动到自身或其后代部门。");
+          throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "department.guard.moveIntoSelf");
         }
       }
     }

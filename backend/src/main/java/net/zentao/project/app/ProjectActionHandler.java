@@ -3,6 +3,7 @@ package net.zentao.project.app;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.workflow.WorkflowEngine;
 import net.zentao.project.api.ProjectApi;
@@ -76,7 +77,7 @@ public class ProjectActionHandler {
       throw ApiException.validation(java.util.Map.of("beginDate", "required"));
     }
     if (body.beginDate().isAfter(body.endDate())) {
-      throw ApiException.guardNotSatisfied("守卫未满足：begin-before-end");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "workflow.guard.notSatisfied", "begin-before-end");
     }
     Project project = require(actor, id, type);
     project.update(null, null, null, body.beginDate(), body.endDate(), null, null, null, null, null, null, null,
@@ -89,7 +90,7 @@ public class ProjectActionHandler {
     engine.fire(new ProjectWorkflowTargets.ProjectTarget(project, actor.account()), action, comment);
     project.markUpdatedBy(actor.account());
     Project saved = repository.update(project)
-        .orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+        .orElseThrow(() -> ApiException.lockConflict());
     return ProjectView.of(saved);
   }
 
@@ -100,12 +101,12 @@ public class ProjectActionHandler {
       throw ApiException.notFound(label(type));
     }
     if (!projectApi.canAccess(actor, id)) {
-      throw ApiException.dataForbidden("无权访问该" + label(type) + "。");
+      throw ApiException.keyed(ErrorCode.DATA_FORBIDDEN, "project.guard.forbiddenTyped", label(type));
     }
     return project;
   }
 
   private static String label(String type) {
-    return "program".equals(type) ? "项目集" : "project".equals(type) ? "项目" : "执行";
+    return "program".equals(type) ? "entity.program" : "project".equals(type) ? "entity.project" : "entity.execution";
   }
 }

@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.task.domain.Task;
 import net.zentao.task.domain.TaskRepository;
 import org.springframework.stereotype.Component;
@@ -83,7 +84,7 @@ public class TaskRepositoryImpl implements TaskRepository {
 
   @Override
   public void softDelete(long id) {
-    Db.updateByCondition("task", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
+    SoftDeletes.apply("task", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
   }
 
   @Override

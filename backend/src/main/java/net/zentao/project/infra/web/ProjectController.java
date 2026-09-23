@@ -3,6 +3,8 @@ package net.zentao.project.infra.web;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import net.zentao.platform.activity.ActivityQueryService;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.BatchActionResult;
@@ -101,6 +103,7 @@ public class ProjectController {
   @PostMapping("/projects")
   @Operation(operationId = "createProject")
   @RequirePrivilege("project-create")
+  @Audit(action = "project-create", objectType = "project")
   public DataEnvelope<ProjectView> create(@RequestBody ProjectCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(createHandler.handleProject(resolver.resolve(request), body));
   }
@@ -115,6 +118,8 @@ public class ProjectController {
   @PatchMapping("/projects/{projectId}")
   @Operation(operationId = "updateProject")
   @RequirePrivilege("project-edit")
+  @Audit(action = "project-update", objectType = "project")
+  @AuditDiff(objectType = "project")
   public DataEnvelope<ProjectView> update(@PathVariable long projectId, @RequestBody ProjectUpdateRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(updateHandler.handle(resolver.resolve(request), projectId, body));
@@ -123,6 +128,8 @@ public class ProjectController {
   @DeleteMapping("/projects/{projectId}")
   @Operation(operationId = "deleteProject")
   @RequirePrivilege("project-delete")
+  @Audit(action = "project-delete", objectType = "project")
+  @AuditDiff(objectType = "project")
   public DataEnvelope<Void> delete(@PathVariable long projectId, HttpServletRequest request) {
     deleteHandler.handle(resolver.resolve(request), projectId, "project");
     return DataEnvelope.empty();
@@ -139,6 +146,7 @@ public class ProjectController {
   @PostMapping("/projects/{projectId}/products")
   @Operation(operationId = "replaceProjectProducts")
   @RequirePrivilege("project-edit")
+  @Audit(action = "project-product-replace", objectType = "project")
   public DataEnvelope<ReplaceProjectProductsHandler.ProjectProductRequest> replaceProducts(@PathVariable long projectId,
       @RequestBody ReplaceProjectProductsHandler.ProjectProductRequest body, HttpServletRequest request) {
     return DataEnvelope.of(productsHandler.replace(resolver.resolve(request), projectId, body));
@@ -155,6 +163,7 @@ public class ProjectController {
   @PostMapping("/projects/{projectId}/stories")
   @Operation(operationId = "linkProjectStories")
   @RequirePrivilege("project-link-story")
+  @Audit(action = "project-story-link", objectType = "project")
   public DataEnvelope<BatchActionResult> linkStories(@PathVariable long projectId,
       @RequestBody LinkProjectStoriesHandler.StoryLinkRequest body, HttpServletRequest request) {
     return DataEnvelope.of(linkStoriesHandler.handle(resolver.resolve(request), "project", projectId, body));
@@ -163,6 +172,7 @@ public class ProjectController {
   @DeleteMapping("/projects/{projectId}/stories/{storyId}")
   @Operation(operationId = "unlinkProjectStory")
   @RequirePrivilege("project-link-story")
+  @Audit(action = "project-story-unlink", objectType = "project")
   public DataEnvelope<Void> unlinkStory(@PathVariable long projectId, @PathVariable long storyId,
       HttpServletRequest request) {
     linkStoriesHandler.unlink(resolver.resolve(request), "project", projectId, storyId);
@@ -181,6 +191,7 @@ public class ProjectController {
   @PostMapping("/projects/{projectId}/members")
   @Operation(operationId = "submitProjectMembers")
   @RequirePrivilege("project-manage-members")
+  @Audit(action = "project-member-submit", objectType = "project")
   public DataEnvelope<SubmitTeamMembersHandler.TeamMemberSubmitResult> submitMembers(@PathVariable long projectId,
       @RequestBody SubmitTeamMembersHandler.TeamMemberSubmitRequest body, HttpServletRequest request) {
     return DataEnvelope.of(submitTeamMembersHandler.handle(resolver.resolve(request), "project", projectId, body));
@@ -198,14 +209,16 @@ public class ProjectController {
   @PostMapping("/projects/{projectId}/stakeholders")
   @Operation(operationId = "addProjectStakeholder")
   @RequirePrivilege("stakeholder-manage")
+  @Audit(action = "project-stakeholder-add", objectType = "project")
   public DataEnvelope<StakeholderQueryService.StakeholderView> addStakeholder(@PathVariable long projectId,
-      @RequestBody AddStakeholderHandler.StakeholderCreateRequest body, HttpServletRequest request) {
+      @jakarta.validation.Valid @RequestBody AddStakeholderHandler.StakeholderCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(addStakeholderHandler.handle(resolver.resolve(request), "project", projectId, body));
   }
 
   @DeleteMapping("/projects/{projectId}/stakeholders/{stakeholderId}")
   @Operation(operationId = "removeProjectStakeholder")
   @RequirePrivilege("stakeholder-manage")
+  @Audit(action = "project-stakeholder-remove", objectType = "project")
   public DataEnvelope<Void> removeStakeholder(@PathVariable long projectId, @PathVariable long stakeholderId,
       HttpServletRequest request) {
     removeStakeholderHandler.handle(resolver.resolve(request), "project", projectId, stakeholderId);
@@ -223,6 +236,7 @@ public class ProjectController {
   @PostMapping("/projects/{projectId}/whitelist")
   @Operation(operationId = "replaceProjectWhitelist")
   @RequirePrivilege("project-whitelist")
+  @Audit(action = "project-whitelist-replace", objectType = "project")
   public DataEnvelope<ReplaceWhitelistHandler.WhitelistRequest> replaceWhitelist(@PathVariable long projectId,
       @RequestBody ReplaceWhitelistHandler.WhitelistRequest body, HttpServletRequest request) {
     return DataEnvelope.of(whitelistHandler.replace(resolver.resolve(request), "project", projectId, body));
@@ -241,6 +255,7 @@ public class ProjectController {
   @PostMapping("/projects/{projectId}/executions")
   @Operation(operationId = "createExecution")
   @RequirePrivilege("execution-create")
+  @Audit(action = "project-execution-create", objectType = "project")
   public DataEnvelope<ProjectView> createExecution(@PathVariable long projectId,
       @RequestBody ProjectCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(createHandler.handleExecution(resolver.resolve(request), projectId, body));
@@ -259,6 +274,8 @@ public class ProjectController {
   @PostMapping("/projects/{projectId}/start")
   @Operation(operationId = "startProject")
   @RequirePrivilege("project-start")
+  @Audit(action = "project-start", objectType = "project")
+  @AuditDiff(objectType = "project")
   public DataEnvelope<ProjectView> start(@PathVariable long projectId,
       @RequestBody(required = false) ProjectStartRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.start(resolver.resolve(request), projectId, "project", body));
@@ -267,6 +284,8 @@ public class ProjectController {
   @PostMapping("/projects/{projectId}/suspend")
   @Operation(operationId = "suspendProject")
   @RequirePrivilege("project-suspend")
+  @Audit(action = "project-suspend", objectType = "project")
+  @AuditDiff(objectType = "project")
   public DataEnvelope<ProjectView> suspend(@PathVariable long projectId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.suspend(resolver.resolve(request), projectId, "project", comment(body)));
@@ -274,6 +293,8 @@ public class ProjectController {
   @PostMapping("/projects/{projectId}/resume")
   @Operation(operationId = "resumeProject")
   @RequirePrivilege("project-resume")
+  @Audit(action = "project-resume", objectType = "project")
+  @AuditDiff(objectType = "project")
   public DataEnvelope<ProjectView> resume(@PathVariable long projectId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.resume(resolver.resolve(request), projectId, "project", comment(body)));
@@ -281,6 +302,8 @@ public class ProjectController {
   @PostMapping("/projects/{projectId}/delay")
   @Operation(operationId = "delayProject")
   @RequirePrivilege("project-delay")
+  @Audit(action = "project-delay", objectType = "project")
+  @AuditDiff(objectType = "project")
   public DataEnvelope<ProjectView> delay(@PathVariable long projectId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.delay(resolver.resolve(request), projectId, "project", comment(body)));
@@ -288,6 +311,8 @@ public class ProjectController {
   @PostMapping("/projects/{projectId}/close")
   @Operation(operationId = "closeProject")
   @RequirePrivilege("project-close")
+  @Audit(action = "project-close", objectType = "project")
+  @AuditDiff(objectType = "project")
   public DataEnvelope<ProjectView> close(@PathVariable long projectId,
       @RequestBody(required = false) ProjectCloseRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.close(resolver.resolve(request), projectId, "project", body));
@@ -296,6 +321,8 @@ public class ProjectController {
   @PostMapping("/projects/{projectId}/activate")
   @Operation(operationId = "activateProject")
   @RequirePrivilege("project-activate")
+  @Audit(action = "project-activate", objectType = "project")
+  @AuditDiff(objectType = "project")
   public DataEnvelope<ProjectView> activate(@PathVariable long projectId,
       @RequestBody(required = false) ProjectActivateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(actionHandler.activate(resolver.resolve(request), projectId, "project", body));

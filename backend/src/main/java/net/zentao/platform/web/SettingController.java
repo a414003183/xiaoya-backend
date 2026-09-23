@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import net.zentao.platform.audit.Audit;
 import net.zentao.platform.meta.SaveSettingsHandler;
 import net.zentao.platform.meta.SettingQueryService;
 import net.zentao.platform.session.SessionResolver;
@@ -40,6 +41,7 @@ public class SettingController {
 
   @PutMapping("/settings")
   @Operation(operationId = "putSettings")
+  @Audit(action = "setting-update", objectType = "setting")
   public DataEnvelope<SettingView> putSettings(@RequestBody SettingsUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(new SettingView(saveHandler.save(resolver.resolve(request), body.settings())));
   }

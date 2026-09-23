@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.zentao.org.domain.Account;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.i18n.MessageResolver;
 import net.zentao.platform.session.SessionPrincipal;
 import org.springframework.stereotype.Component;
 
@@ -12,9 +13,12 @@ import org.springframework.stereotype.Component;
 public class BatchCreateAccountHandler {
 
   private final CreateAccountHandler createHandler;
+  private final MessageResolver messages;
 
-  public BatchCreateAccountHandler(CreateAccountHandler createHandler) {
+  public BatchCreateAccountHandler(CreateAccountHandler createHandler,
+      MessageResolver messages) {
     this.createHandler = createHandler;
+    this.messages = messages;
   }
 
   public record BatchResultItem(int index, boolean ok, Long id, String error) {}
@@ -32,7 +36,7 @@ public class BatchCreateAccountHandler {
         Account account = createHandler.handle(actor, command);
         results.add(new BatchResultItem(index, true, account.id(), null));
       } catch (ApiException e) {
-        results.add(new BatchResultItem(index, false, null, e.errorCode().code() + ":" + e.getMessage()));
+        results.add(new BatchResultItem(index, false, null, e.errorCode().code() + ":" + messages.forRequest(e)));
       }
       index += 1;
     }

@@ -1,11 +1,21 @@
 package net.zentao.project.infra;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import net.zentao.platform.audit.AuditCatalog;
+import net.zentao.platform.audit.AuditCategory;
+import net.zentao.platform.audit.AuditLevel;
+import net.zentao.platform.audit.AuditSnapshotRegistry;
 import net.zentao.platform.meta.MetaRegistry;
 import net.zentao.platform.meta.MetaView;
 import net.zentao.platform.rbac.PrivilegeCatalog;
 import net.zentao.platform.workflow.WorkflowRegistry;
+import net.zentao.project.domain.BoardRepository;
+import net.zentao.project.domain.BoardSpaceRepository;
+import net.zentao.project.domain.CardRepository;
+import net.zentao.project.domain.ProjectRepository;
+import net.zentao.project.domain.StageRepository;
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -15,8 +25,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ProjectRegistrar {
 
+  /** 三型 PATCH 可比字段（描述是长文本、parentId 不随 PATCH 变，均不入 diff）。 */
+  private static final List<String> PROJECT_DIFF_FIELDS = List.of("name", "code", "model", "status", "priority",
+      "pm", "po", "qd", "rd", "beginDate", "endDate", "days", "budget", "acl", "whitelist", "isMilestone");
+
   public ProjectRegistrar(MetaRegistry metaRegistry, PrivilegeCatalog privilegeCatalog,
-      WorkflowRegistry workflowRegistry) {
+      WorkflowRegistry workflowRegistry, ProjectRepository projectRepository, StageRepository stageRepository,
+      BoardSpaceRepository boardSpaceRepository, BoardRepository boardRepository, CardRepository cardRepository,
+      AuditCatalog auditCatalog, AuditSnapshotRegistry auditSnapshots) {
     privilegeCatalog.register("program", List.of(
         "program-view", "program-create", "program-edit", "program-delete", "program-start", "program-suspend",
         "program-resume", "program-delay", "program-close", "program-activate"));
@@ -49,6 +65,166 @@ public class ProjectRegistrar {
     metaRegistry.register("board", boardMeta(workflowRegistry));
     metaRegistry.register("lane", laneMeta());
     metaRegistry.register("card", cardMeta());
+
+    // ── 审计分级（T10 / VISION 事项 4 第 4 行「业务增删改 → 对象级 + 关键字段 diff」）──
+    registerAudit(auditCatalog, auditSnapshots, projectRepository, stageRepository, boardSpaceRepository,
+        boardRepository, cardRepository);
+  }
+
+  /**
+   * 审计动作目录登记 + 各资源快照 provider：动作名/分类/字段清单在此一处声明（控制器只挂注解）。
+   */
+  private static void registerAudit(AuditCatalog auditCatalog, AuditSnapshotRegistry auditSnapshots,
+      ProjectRepository projectRepository, StageRepository stageRepository, BoardSpaceRepository boardSpaceRepository,
+      BoardRepository boardRepository, CardRepository cardRepository) {
+    // 三型同构（program/project/execution 一表三义）：动词取路由，字段口径同一份——批量登记保证三型不漂移。
+    // execution 无独立创建端点（建执行走 projects 族），故 create 单独登记。
+    for (String resource : List.of("program", "project", "execution")) {
+      auditCatalog.register(resource + "-update", AuditCategory.BUSINESS, AuditLevel.FULL, PROJECT_DIFF_FIELDS, false);
+      auditCatalog.register(resource + "-delete", AuditCategory.BUSINESS, AuditLevel.FULL,
+          List.of("name", "status", "parentId"), false);
+      auditCatalog.register(resource + "-start", AuditCategory.BUSINESS, AuditLevel.FULL,
+          List.of("status", "realBeganDate"), false);
+      auditCatalog.register(resource + "-suspend", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+      auditCatalog.register(resource + "-resume", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+      auditCatalog.register(resource + "-delay", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+      auditCatalog.register(resource + "-close", AuditCategory.BUSINESS, AuditLevel.FULL,
+          List.of("status", "realEndDate"), false);
+      auditCatalog.register(resource + "-activate", AuditCategory.BUSINESS, AuditLevel.FULL,
+          List.of("status", "beginDate", "endDate", "realEndDate"), false);
+    }
+    auditCatalog.register("program-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("project-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+
+    // 关系/归属类（干系人、成员、关联产品/需求、白名单、建执行）：只记「发生了」——被改的是关系表，
+    // 对象自身字段不变，没有可比的前后值（VISION 事项 4 第 4 行只要求对象级留痕）。
+    for (String action : List.of("program-stakeholder-add", "program-stakeholder-remove", "project-stakeholder-add",
+        "project-stakeholder-remove", "project-product-replace", "project-story-link", "project-story-unlink",
+        "project-member-submit", "project-whitelist-replace", "project-execution-create", "execution-member-submit",
+        "execution-story-unlink", "execution-card-move")) {
+      auditCatalog.register(action, AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    }
+
+    auditCatalog.register("stage-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("stage-update", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "percent", "type", "sort"), false);
+    auditCatalog.register("stage-delete", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "percent", "type"), false);
+
+    auditCatalog.register("board-space-create", AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    auditCatalog.register("board-space-update", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "type", "owner", "team", "acl", "whitelist", "sort"), false);
+    auditCatalog.register("board-space-close", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("board-space-activate", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("board-space-delete", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "status"), false);
+    for (String action : List.of("board-space-board-create", "board-lane-create", "board-lane-update",
+        "board-lane-delete", "board-card-create", "card-move")) {
+      auditCatalog.register(action, AuditCategory.BUSINESS, AuditLevel.SUMMARY, List.of(), false);
+    }
+    auditCatalog.register("board-update", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "owner", "team", "acl", "whitelist", "sort"), false);
+    auditCatalog.register("board-close", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("board-activate", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("status"), false);
+    auditCatalog.register("board-delete", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("name", "status"), false);
+    auditCatalog.register("card-update", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "status", "priority", "assignee", "beginDate", "endDate", "estimateHours", "progress"),
+        false);
+    auditCatalog.register("card-archive", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("archived"), false);
+    auditCatalog.register("card-unarchive", AuditCategory.BUSINESS, AuditLevel.FULL, List.of("archived"), false);
+    auditCatalog.register("card-delete", AuditCategory.BUSINESS, AuditLevel.FULL,
+        List.of("name", "laneId", "status"), false);
+
+    // 快照 provider：**每次返回新 Map**（框架留着 before 再取 after 比对，同一个可变 Map 会让 diff 恒为空）；
+    // 字段用 LinkedHashMap 装（Map.of 不收 null，而 code/pm/realBeganDate 这类字段可以为空）。
+    // 只取审计关心的标量与访问配置：描述正文一律不入快照（审计表只追加且留 180 天）。
+    for (String resource : List.of("program", "project", "execution")) {
+      auditSnapshots.register(resource, id -> projectSnapshot(projectRepository, id));
+    }
+    auditSnapshots.register("stage", stageId -> stageRepository.findActiveById(stageId)
+        .map(stage -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("name", stage.name());
+          snapshot.put("percent", stage.percent());
+          snapshot.put("type", stage.type());
+          snapshot.put("projectModel", stage.projectModel());
+          snapshot.put("sort", stage.sort());
+          return snapshot;
+        })
+        .orElse(null));
+    auditSnapshots.register("boardSpace", boardSpaceId -> boardSpaceRepository.findActiveById(boardSpaceId)
+        .map(space -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("name", space.name());
+          snapshot.put("type", space.type());
+          snapshot.put("owner", space.owner());
+          snapshot.put("team", space.team());
+          snapshot.put("acl", space.acl());
+          snapshot.put("whitelist", space.whitelist());
+          snapshot.put("status", space.status());
+          snapshot.put("sort", space.sort());
+          return snapshot;
+        })
+        .orElse(null));
+    auditSnapshots.register("board", boardId -> boardRepository.findActiveById(boardId)
+        .map(board -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("spaceId", board.spaceId());
+          snapshot.put("name", board.name());
+          snapshot.put("owner", board.owner());
+          snapshot.put("team", board.team());
+          snapshot.put("acl", board.acl());
+          snapshot.put("whitelist", board.whitelist());
+          snapshot.put("status", board.status());
+          snapshot.put("sort", board.sort());
+          return snapshot;
+        })
+        .orElse(null));
+    auditSnapshots.register("card", cardId -> cardRepository.findActiveById(cardId)
+        .map(card -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("laneId", card.laneId());
+          snapshot.put("name", card.name());
+          snapshot.put("status", card.status());
+          snapshot.put("priority", card.priority());
+          snapshot.put("assignee", card.assignee());
+          snapshot.put("beginDate", card.beginDate());
+          snapshot.put("endDate", card.endDate());
+          snapshot.put("estimateHours", card.estimateHours());
+          snapshot.put("progress", card.progress());
+          snapshot.put("archived", card.archived());
+          return snapshot;
+        })
+        .orElse(null));
+  }
+
+  /** 三型共用的项目快照口径（program/project/execution 同表，只按 id 找，不要求 principal）。 */
+  private static Map<String, Object> projectSnapshot(ProjectRepository repository, long id) {
+    return repository.findActiveById(id)
+        .map(project -> {
+          Map<String, Object> snapshot = new LinkedHashMap<>();
+          snapshot.put("name", project.name());
+          snapshot.put("code", project.code());
+          snapshot.put("model", project.model());
+          snapshot.put("status", project.status());
+          snapshot.put("priority", project.priority());
+          snapshot.put("parentId", project.parentId());
+          snapshot.put("pm", project.pm());
+          snapshot.put("po", project.po());
+          snapshot.put("qd", project.qd());
+          snapshot.put("rd", project.rd());
+          snapshot.put("beginDate", project.beginDate());
+          snapshot.put("endDate", project.endDate());
+          snapshot.put("realBeganDate", project.realBeganDate());
+          snapshot.put("realEndDate", project.realEndDate());
+          snapshot.put("days", project.days());
+          snapshot.put("budget", project.budget());
+          snapshot.put("acl", project.acl());
+          snapshot.put("whitelist", project.whitelist());
+          snapshot.put("isMilestone", project.isMilestone());
+          return snapshot;
+        })
+        .orElse(null);
   }
 
   /** 阶段类型字典 meta（§3.2）：无状态机（actions 空），percent 超限由端点守卫。 */

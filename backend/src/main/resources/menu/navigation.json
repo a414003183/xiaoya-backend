@@ -1,0 +1,1506 @@
+{
+  "groups": [
+    {
+      "key": "dashboard",
+      "title": "nav.group.dashboard",
+      "icon": "DashboardOutlined",
+      "children": [
+        {
+          "page": "/my"
+        },
+        {
+          "page": "/my/todos"
+        },
+        {
+          "page": "/my/tasks"
+        },
+        {
+          "page": "/my/bugs"
+        },
+        {
+          "page": "/my/stories"
+        },
+        {
+          "page": "/my/activities"
+        },
+        {
+          "page": "/notifications"
+        }
+      ]
+    },
+    {
+      "key": "product",
+      "title": "nav.group.product",
+      "icon": "ProductOutlined",
+      "children": [
+        {
+          "page": "/products"
+        },
+        {
+          "page": "/products/kanban"
+        }
+      ]
+    },
+    {
+      "key": "project",
+      "title": "nav.group.project",
+      "icon": "ProjectOutlined",
+      "children": [
+        {
+          "page": "/programs"
+        },
+        {
+          "page": "/projects"
+        },
+        {
+          "page": "/executions"
+        },
+        {
+          "page": "/board-spaces"
+        }
+      ]
+    },
+    {
+      "key": "quality",
+      "title": "nav.group.quality",
+      "icon": "ExperimentOutlined",
+      "children": [
+        {
+          "page": "/libraries"
+        }
+      ]
+    },
+    {
+      "key": "doc",
+      "title": "nav.group.doc",
+      "icon": "FileTextOutlined",
+      "children": [
+        {
+          "page": "/doc/spaces"
+        },
+        {
+          "page": "/doc/my"
+        },
+        {
+          "page": "/doc/files"
+        }
+      ]
+    },
+    {
+      "key": "org",
+      "title": "nav.group.org",
+      "icon": "TeamOutlined",
+      "children": [
+        {
+          "page": "/org/accounts"
+        },
+        {
+          "page": "/org/departments"
+        },
+        {
+          "page": "/personnel"
+        },
+        {
+          "page": "/personnel/workload"
+        }
+      ]
+    },
+    {
+      "key": "admin",
+      "title": "nav.group.admin",
+      "icon": "SettingOutlined",
+      "children": [
+        {
+          "key": "admin/system",
+          "title": "nav.section.adminSystem",
+          "order": 1,
+          "children": [
+            {
+              "page": "/admin/settings"
+            },
+            {
+              "page": "/admin/params"
+            },
+            {
+              "page": "/admin/dicts"
+            },
+            {
+              "page": "/admin/menus"
+            }
+          ]
+        },
+        {
+          "key": "admin/lang",
+          "title": "nav.section.adminLang",
+          "order": 2,
+          "children": [
+            {
+              "page": "/admin/lang-upload"
+            }
+          ]
+        },
+        {
+          "page": "/settings/stages"
+        },
+        {
+          "page": "/admin/roles"
+        },
+        {
+          "key": "admin/audit",
+          "title": "nav.section.auditLog",
+          "order": 5,
+          "children": [
+            {
+              "page": "/admin/audit-logs"
+            },
+            {
+              "page": "/admin/login-logs"
+            }
+          ]
+        },
+        {
+          "key": "admin/monitor",
+          "title": "nav.section.adminMonitor",
+          "order": 6,
+          "children": [
+            {
+              "page": "/admin/online-users"
+            },
+            {
+              "page": "/admin/api-docs"
+            },
+            {
+              "page": "/admin/monitor"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "key": "/admin/api-docs",
+      "path": "/admin/api-docs",
+      "component": "ApiDocPage",
+      "title": "platform.apiDoc.title",
+      "order": 2,
+      "perm": "api-doc-view",
+      "hidden": false,
+      "menu": "admin/monitor",
+      "buttons": []
+    },
+    {
+      "key": "/admin/audit-logs",
+      "path": "/admin/audit-logs",
+      "component": "AuditLogListPage",
+      "title": "platform.auditLog.title",
+      "order": 1,
+      "perm": "audit-log-view",
+      "hidden": false,
+      "menu": "admin/audit",
+      "buttons": []
+    },
+    {
+      "key": "/admin/dicts",
+      "path": "/admin/dicts",
+      "component": "DictTypeListPage",
+      "title": "platform.dict.title",
+      "order": 3,
+      "perm": "setting-manage",
+      "hidden": false,
+      "menu": "admin/system",
+      "buttons": [
+        "setting-manage"
+      ]
+    },
+    {
+      "key": "/admin/lang-upload",
+      "path": "/admin/lang-upload",
+      "component": "LangUploadPage",
+      "title": "platform.langUpload.title",
+      "order": 1,
+      "perm": "lang-manage",
+      "hidden": false,
+      "menu": "admin/lang",
+      "buttons": []
+    },
+    {
+      "key": "/admin/login-logs",
+      "path": "/admin/login-logs",
+      "component": "LoginLogListPage",
+      "title": "platform.loginLog.title",
+      "order": 2,
+      "perm": "audit-log-view",
+      "hidden": false,
+      "menu": "admin/audit",
+      "buttons": []
+    },
+    {
+      "key": "/admin/menus",
+      "path": "/admin/menus",
+      "component": "MenuListPage",
+      "title": "platform.menu.title",
+      "order": 4,
+      "perm": "menu-manage",
+      "hidden": false,
+      "menu": "admin/system",
+      "buttons": []
+    },
+    {
+      "key": "/admin/monitor",
+      "path": "/admin/monitor",
+      "component": "ServerMonitorPage",
+      "title": "platform.monitor.title",
+      "order": 3,
+      "perm": "monitor-view",
+      "hidden": false,
+      "menu": "admin/monitor",
+      "buttons": []
+    },
+    {
+      "key": "/admin/online-users",
+      "path": "/admin/online-users",
+      "component": "OnlineUserListPage",
+      "title": "platform.onlineUser.title",
+      "order": 1,
+      "perm": "online-user-view",
+      "hidden": false,
+      "menu": "admin/monitor",
+      "buttons": [
+        "online-user-kick"
+      ]
+    },
+    {
+      "key": "/admin/params",
+      "path": "/admin/params",
+      "component": "ParamListPage",
+      "title": "platform.param.title",
+      "order": 2,
+      "perm": "setting-manage",
+      "hidden": false,
+      "menu": "admin/system",
+      "buttons": []
+    },
+    {
+      "key": "/admin/roles",
+      "path": "/admin/roles",
+      "component": "RoleListPage",
+      "title": "org.role.title",
+      "order": 4,
+      "perm": "role-view",
+      "hidden": false,
+      "menu": "admin",
+      "buttons": [
+        "role-copy",
+        "role-create",
+        "role-delete",
+        "role-edit",
+        "role-priv-edit"
+      ]
+    },
+    {
+      "key": "/admin/roles/:roleId/members",
+      "path": "/admin/roles/:roleId/members",
+      "component": "RoleMembersPage",
+      "title": "org.role.membersTitle",
+      "order": 999,
+      "perm": "role-view",
+      "hidden": true,
+      "activeMenu": "/admin/roles",
+      "menu": "admin",
+      "buttons": [
+        "role-member-edit",
+        "role-priv-edit"
+      ]
+    },
+    {
+      "key": "/admin/roles/:roleId/privileges",
+      "path": "/admin/roles/:roleId/privileges",
+      "component": "RolePrivilegesPage",
+      "title": "org.role.privilegeTitle",
+      "order": 999,
+      "perm": "role-priv-edit",
+      "hidden": true,
+      "activeMenu": "/admin/roles",
+      "menu": "admin",
+      "buttons": []
+    },
+    {
+      "key": "/admin/settings",
+      "path": "/admin/settings",
+      "component": "SettingPage",
+      "title": "platform.settings.title",
+      "order": 1,
+      "perm": "setting-manage",
+      "hidden": false,
+      "menu": "admin/system",
+      "buttons": []
+    },
+    {
+      "key": "/board-spaces",
+      "path": "/board-spaces",
+      "component": "BoardSpaceListPage",
+      "title": "board.title.spaceList",
+      "order": 4,
+      "perm": "board-view",
+      "hidden": false,
+      "menu": "project",
+      "buttons": [
+        "board-space-create",
+        "board-space-edit"
+      ]
+    },
+    {
+      "key": "/board-spaces/:boardSpaceId",
+      "path": "/board-spaces/:boardSpaceId",
+      "component": "BoardSpaceDetailPage",
+      "title": "board.title.spaceDetail",
+      "order": 999,
+      "perm": "board-view",
+      "hidden": true,
+      "activeMenu": "/board-spaces",
+      "menu": "board-spaces",
+      "buttons": [
+        "board-create",
+        "board-edit",
+        "board-space-close",
+        "board-space-edit"
+      ]
+    },
+    {
+      "key": "/boards/:boardId",
+      "path": "/boards/:boardId",
+      "component": "BoardPage",
+      "title": "board.title.board",
+      "order": 999,
+      "perm": "board-view",
+      "hidden": true,
+      "activeMenu": "/board-spaces",
+      "menu": "boards",
+      "buttons": [
+        "board-card-create",
+        "board-close",
+        "board-edit"
+      ]
+    },
+    {
+      "key": "/bugs/:bugId",
+      "path": "/bugs/:bugId",
+      "component": "BugDetailPage",
+      "title": "quality.title.bugDetail",
+      "order": 999,
+      "perm": "bug-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "bugs",
+      "buttons": [
+        "bug-delete",
+        "file-upload"
+      ]
+    },
+    {
+      "key": "/bugs/batch-edit",
+      "path": "/bugs/batch-edit",
+      "component": "BugBatchEditPage",
+      "title": "quality.title.bugBatchEdit",
+      "order": 999,
+      "perm": "bug-edit",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "bugs",
+      "buttons": []
+    },
+    {
+      "key": "/builds/:buildId",
+      "path": "/builds/:buildId",
+      "component": "BuildDetailPage",
+      "title": "build.title.detail",
+      "order": 999,
+      "perm": "build-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "builds",
+      "buttons": []
+    },
+    {
+      "key": "/doc/files",
+      "path": "/doc/files",
+      "component": "DocFilesPage",
+      "title": "doc.title.files",
+      "order": 3,
+      "perm": "doc-view",
+      "hidden": false,
+      "menu": "doc",
+      "buttons": []
+    },
+    {
+      "key": "/doc/my",
+      "path": "/doc/my",
+      "component": "DocMyPage",
+      "title": "doc.title.my",
+      "order": 2,
+      "perm": "doc-view",
+      "hidden": false,
+      "menu": "doc",
+      "buttons": []
+    },
+    {
+      "key": "/doc/spaces",
+      "path": "/doc/spaces",
+      "component": "DocSpaceListPage",
+      "title": "docSpace.title.list",
+      "order": 1,
+      "perm": "doc-space-view",
+      "hidden": false,
+      "menu": "doc",
+      "buttons": [
+        "doc-space-create",
+        "doc-space-delete",
+        "doc-space-edit"
+      ]
+    },
+    {
+      "key": "/doc/spaces/:docSpaceId",
+      "path": "/doc/spaces/:docSpaceId",
+      "component": "DocSpacePage",
+      "title": "docSpace.title.detail",
+      "order": 999,
+      "perm": "doc-space-view",
+      "hidden": true,
+      "activeMenu": "/doc/spaces",
+      "menu": "doc",
+      "buttons": [
+        "doc-create",
+        "doc-edit"
+      ]
+    },
+    {
+      "key": "/docs/:docId",
+      "path": "/docs/:docId",
+      "component": "DocDetailPage",
+      "title": "doc.title.detail",
+      "order": 999,
+      "perm": "doc-view",
+      "hidden": true,
+      "activeMenu": "/doc/spaces",
+      "menu": "docs",
+      "buttons": [
+        "doc-edit",
+        "file-upload"
+      ]
+    },
+    {
+      "key": "/docs/:docId/diff",
+      "path": "/docs/:docId/diff",
+      "component": "DocDiffPage",
+      "title": "docVersion.title.diff",
+      "order": 999,
+      "perm": "doc-view",
+      "hidden": true,
+      "activeMenu": "/doc/spaces",
+      "menu": "docs",
+      "buttons": []
+    },
+    {
+      "key": "/docs/:docId/edit",
+      "path": "/docs/:docId/edit",
+      "component": "DocEditPage",
+      "title": "doc.title.edit",
+      "order": 999,
+      "perm": "doc-edit",
+      "hidden": true,
+      "activeMenu": "/doc/spaces",
+      "menu": "docs",
+      "buttons": []
+    },
+    {
+      "key": "/docs/:docId/versions",
+      "path": "/docs/:docId/versions",
+      "component": "DocVersionsPage",
+      "title": "docVersion.title.list",
+      "order": 999,
+      "perm": "doc-view",
+      "hidden": true,
+      "activeMenu": "/doc/spaces",
+      "menu": "docs",
+      "buttons": []
+    },
+    {
+      "key": "/executions",
+      "path": "/executions",
+      "component": "ExecutionListPage",
+      "title": "project.title.executions",
+      "order": 3,
+      "perm": "execution-view",
+      "hidden": false,
+      "menu": "project",
+      "buttons": [
+        "execution-delete"
+      ]
+    },
+    {
+      "key": "/executions/:executionId",
+      "path": "/executions/:executionId",
+      "component": "ExecutionDetailPage",
+      "title": "project.title.executionDetail",
+      "order": 999,
+      "perm": "execution-view",
+      "hidden": true,
+      "activeMenu": "/executions",
+      "menu": "executions",
+      "buttons": [
+        "execution-edit"
+      ]
+    },
+    {
+      "key": "/executions/:executionId/kanban",
+      "path": "/executions/:executionId/kanban",
+      "component": "ExecutionKanbanPage",
+      "title": "board.title.executionKanban",
+      "order": 999,
+      "perm": "execution-view",
+      "hidden": true,
+      "activeMenu": "/executions",
+      "menu": "executions",
+      "buttons": []
+    },
+    {
+      "key": "/executions/:executionId/reports",
+      "path": "/executions/:executionId/reports",
+      "component": "ReportListPage",
+      "title": "quality.title.reports",
+      "order": 999,
+      "perm": "report-view",
+      "hidden": true,
+      "activeMenu": "/executions",
+      "menu": "executions",
+      "buttons": [
+        "report-create"
+      ]
+    },
+    {
+      "key": "/executions/:executionId/reports/burn",
+      "path": "/executions/:executionId/reports/burn",
+      "component": "ReportBurnPage",
+      "title": "report.title.burn",
+      "order": 999,
+      "perm": "report-view",
+      "hidden": true,
+      "activeMenu": "/executions",
+      "menu": "executions",
+      "buttons": []
+    },
+    {
+      "key": "/executions/:executionId/tasks",
+      "path": "/executions/:executionId/tasks",
+      "component": "TaskListPage",
+      "title": "task.title.list",
+      "order": 999,
+      "perm": "task-view",
+      "hidden": true,
+      "activeMenu": "/executions",
+      "menu": "executions",
+      "buttons": [
+        "task-create"
+      ]
+    },
+    {
+      "key": "/executions/:executionId/tasks/batch-create",
+      "path": "/executions/:executionId/tasks/batch-create",
+      "component": "TaskBatchCreatePage",
+      "title": "task.title.batchCreate",
+      "order": 999,
+      "perm": "task-create",
+      "hidden": true,
+      "activeMenu": "/executions",
+      "menu": "executions",
+      "buttons": []
+    },
+    {
+      "key": "/libraries",
+      "path": "/libraries",
+      "component": "LibraryListPage",
+      "title": "quality.title.libraries",
+      "order": 1,
+      "perm": "library-view",
+      "hidden": false,
+      "menu": "quality",
+      "buttons": [
+        "library-create"
+      ]
+    },
+    {
+      "key": "/libraries/:libraryId",
+      "path": "/libraries/:libraryId",
+      "component": "LibraryDetailPage",
+      "title": "quality.title.libraryDetail",
+      "order": 999,
+      "perm": "library-view",
+      "hidden": true,
+      "activeMenu": "/libraries",
+      "menu": "libraries",
+      "buttons": [
+        "library-delete",
+        "library-edit",
+        "testcase-edit"
+      ]
+    },
+    {
+      "key": "/libraries/:libraryId/test-cases/batch",
+      "path": "/libraries/:libraryId/test-cases/batch",
+      "component": "LibraryCaseBatchCreatePage",
+      "title": "quality.title.libraryCaseBatchCreate",
+      "order": 999,
+      "perm": "library-edit",
+      "hidden": true,
+      "activeMenu": "/libraries",
+      "menu": "libraries",
+      "buttons": []
+    },
+    {
+      "key": "/login",
+      "path": "/login",
+      "component": "LoginPage",
+      "title": "auth.login.title",
+      "order": 999,
+      "hidden": true,
+      "menu": "login",
+      "buttons": []
+    },
+    {
+      "key": "/my",
+      "path": "/my",
+      "component": "MyDashboardPage",
+      "title": "workspace.title.dashboard",
+      "order": 1,
+      "perm": "my-view",
+      "hidden": false,
+      "menu": "dashboard",
+      "buttons": []
+    },
+    {
+      "key": "/my/activities",
+      "path": "/my/activities",
+      "component": "MyActivitiesPage",
+      "title": "workspace.title.activities",
+      "order": 6,
+      "perm": "my-view",
+      "hidden": false,
+      "menu": "dashboard",
+      "buttons": []
+    },
+    {
+      "key": "/my/bugs",
+      "path": "/my/bugs",
+      "component": "MyBugsPage",
+      "title": "workspace.title.myBugs",
+      "order": 4,
+      "perm": "my-view",
+      "hidden": false,
+      "menu": "dashboard",
+      "buttons": []
+    },
+    {
+      "key": "/my/profile",
+      "path": "/my/profile",
+      "component": "MyProfilePage",
+      "title": "my.profile.title",
+      "order": 999,
+      "perm": "account-view",
+      "hidden": true,
+      "activeMenu": "/my",
+      "menu": "my",
+      "buttons": [
+        "file-upload"
+      ]
+    },
+    {
+      "key": "/my/stories",
+      "path": "/my/stories",
+      "component": "MyStoriesPage",
+      "title": "workspace.title.myStories",
+      "order": 5,
+      "perm": "my-view",
+      "hidden": false,
+      "menu": "dashboard",
+      "buttons": []
+    },
+    {
+      "key": "/my/tasks",
+      "path": "/my/tasks",
+      "component": "MyTasksPage",
+      "title": "workspace.title.myTasks",
+      "order": 3,
+      "perm": "my-view",
+      "hidden": false,
+      "menu": "dashboard",
+      "buttons": []
+    },
+    {
+      "key": "/my/todos",
+      "path": "/my/todos",
+      "component": "TodoListPage",
+      "title": "workspace.title.todos",
+      "order": 2,
+      "perm": "todo-view",
+      "hidden": false,
+      "menu": "dashboard",
+      "buttons": [
+        "todo-create",
+        "todo-edit"
+      ]
+    },
+    {
+      "key": "/notifications",
+      "path": "/notifications",
+      "component": "NotificationListPage",
+      "title": "platform.notifications.title",
+      "order": 7,
+      "hidden": false,
+      "menu": "dashboard",
+      "buttons": []
+    },
+    {
+      "key": "/notifications/settings",
+      "path": "/notifications/settings",
+      "component": "NotificationSettingPage",
+      "title": "platform.notification.settings.title",
+      "order": 999,
+      "hidden": true,
+      "activeMenu": "/notifications",
+      "menu": "notifications",
+      "buttons": []
+    },
+    {
+      "key": "/org/accounts",
+      "path": "/org/accounts",
+      "component": "AccountListPage",
+      "title": "org.accounts.title",
+      "order": 1,
+      "perm": "account-view",
+      "hidden": false,
+      "menu": "org",
+      "buttons": []
+    },
+    {
+      "key": "/org/accounts/:accountId",
+      "path": "/org/accounts/:accountId",
+      "component": "AccountDetailPage",
+      "title": "org.account.detailTitle",
+      "order": 999,
+      "perm": "account-view",
+      "hidden": true,
+      "activeMenu": "/org/accounts",
+      "menu": "org",
+      "buttons": []
+    },
+    {
+      "key": "/org/accounts/batch",
+      "path": "/org/accounts/batch",
+      "component": "AccountBatchCreatePage",
+      "title": "org.accounts.batchTitle",
+      "order": 999,
+      "perm": "account-create",
+      "hidden": true,
+      "activeMenu": "/org/accounts",
+      "menu": "org",
+      "buttons": []
+    },
+    {
+      "key": "/org/departments",
+      "path": "/org/departments",
+      "component": "DepartmentListPage",
+      "title": "org.departments.title",
+      "order": 2,
+      "perm": "department-view",
+      "hidden": false,
+      "menu": "org",
+      "buttons": [
+        "department-create",
+        "department-delete",
+        "department-edit"
+      ]
+    },
+    {
+      "key": "/personnel",
+      "path": "/personnel",
+      "component": "PersonnelListPage",
+      "title": "personnel.title",
+      "order": 4,
+      "perm": "personnel-view",
+      "hidden": false,
+      "menu": "org",
+      "buttons": []
+    },
+    {
+      "key": "/personnel/workload",
+      "path": "/personnel/workload",
+      "component": "PersonnelWorkloadPage",
+      "title": "personnel.workload.title",
+      "order": 5,
+      "perm": "personnel-view",
+      "hidden": false,
+      "menu": "org",
+      "buttons": []
+    },
+    {
+      "key": "/plans/:planId",
+      "path": "/plans/:planId",
+      "component": "PlanDetailPage",
+      "title": "plan.title.detail",
+      "order": 999,
+      "perm": "plan-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "plans",
+      "buttons": []
+    },
+    {
+      "key": "/products",
+      "path": "/products",
+      "component": "ProductListPage",
+      "title": "product.title.list",
+      "order": 1,
+      "perm": "product-view",
+      "hidden": false,
+      "menu": "product",
+      "buttons": [
+        "product-delete"
+      ]
+    },
+    {
+      "key": "/products/:productId",
+      "path": "/products/:productId",
+      "component": "ProductDetailPage",
+      "title": "product.title.detail",
+      "order": 999,
+      "perm": "product-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": []
+    },
+    {
+      "key": "/products/:productId/branches",
+      "path": "/products/:productId/branches",
+      "component": "ProductBranchesPage",
+      "title": "branch.title.list",
+      "order": 999,
+      "perm": "product-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": [
+        "branch-delete",
+        "branch-manage"
+      ]
+    },
+    {
+      "key": "/products/:productId/bugs",
+      "path": "/products/:productId/bugs",
+      "component": "BugListPage",
+      "title": "quality.title.bugs",
+      "order": 999,
+      "perm": "bug-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": []
+    },
+    {
+      "key": "/products/:productId/bugs/batch",
+      "path": "/products/:productId/bugs/batch",
+      "component": "BugBatchCreatePage",
+      "title": "quality.title.bugBatchCreate",
+      "order": 999,
+      "perm": "bug-create",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": []
+    },
+    {
+      "key": "/products/:productId/builds",
+      "path": "/products/:productId/builds",
+      "component": "BuildListPage",
+      "title": "build.title.list",
+      "order": 999,
+      "perm": "build-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": []
+    },
+    {
+      "key": "/products/:productId/categories",
+      "path": "/products/:productId/categories",
+      "component": "ProductCategoriesPage",
+      "title": "category.title.list",
+      "order": 999,
+      "perm": "product-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": [
+        "category-manage"
+      ]
+    },
+    {
+      "key": "/products/:productId/dynamic",
+      "path": "/products/:productId/dynamic",
+      "component": "ProductDynamicPage",
+      "title": "product.title.dynamic",
+      "order": 999,
+      "perm": "product-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": []
+    },
+    {
+      "key": "/products/:productId/plans",
+      "path": "/products/:productId/plans",
+      "component": "PlanListPage",
+      "title": "plan.title.list",
+      "order": 999,
+      "perm": "plan-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": [
+        "plan-delete"
+      ]
+    },
+    {
+      "key": "/products/:productId/projects",
+      "path": "/products/:productId/projects",
+      "component": "ProductProjectsPage",
+      "title": "project.title.list",
+      "order": 999,
+      "perm": "project-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": []
+    },
+    {
+      "key": "/products/:productId/releases",
+      "path": "/products/:productId/releases",
+      "component": "ReleaseListPage",
+      "title": "release.title.list",
+      "order": 999,
+      "perm": "release-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": [
+        "release-delete"
+      ]
+    },
+    {
+      "key": "/products/:productId/reports/bug-distribution",
+      "path": "/products/:productId/reports/bug-distribution",
+      "component": "ReportBugDistributionPage",
+      "title": "report.title.bugDistribution",
+      "order": 999,
+      "perm": "report-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": []
+    },
+    {
+      "key": "/products/:productId/reports/story-summary",
+      "path": "/products/:productId/reports/story-summary",
+      "component": "ReportStorySummaryPage",
+      "title": "report.title.storySummary",
+      "order": 999,
+      "perm": "report-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": []
+    },
+    {
+      "key": "/products/:productId/stories",
+      "path": "/products/:productId/stories",
+      "component": "StoryListPage",
+      "title": "story.title.list",
+      "order": 999,
+      "perm": "story-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": []
+    },
+    {
+      "key": "/products/:productId/stories/batch",
+      "path": "/products/:productId/stories/batch",
+      "component": "StoryBatchCreatePage",
+      "title": "story.title.batchCreate",
+      "order": 999,
+      "perm": "story-create",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": []
+    },
+    {
+      "key": "/products/:productId/suites",
+      "path": "/products/:productId/suites",
+      "component": "SuiteListPage",
+      "title": "quality.title.suites",
+      "order": 999,
+      "perm": "suite-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": [
+        "suite-create"
+      ]
+    },
+    {
+      "key": "/products/:productId/test-cases",
+      "path": "/products/:productId/test-cases",
+      "component": "TestCaseListPage",
+      "title": "quality.title.testCases",
+      "order": 999,
+      "perm": "testcase-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": [
+        "testcase-create"
+      ]
+    },
+    {
+      "key": "/products/:productId/test-cases/batch",
+      "path": "/products/:productId/test-cases/batch",
+      "component": "TestCaseBatchCreatePage",
+      "title": "quality.title.caseBatchCreate",
+      "order": 999,
+      "perm": "testcase-create",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": []
+    },
+    {
+      "key": "/products/:productId/test-runs",
+      "path": "/products/:productId/test-runs",
+      "component": "TestRunListPage",
+      "title": "quality.title.testRuns",
+      "order": 999,
+      "perm": "testrun-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": [
+        "testrun-create"
+      ]
+    },
+    {
+      "key": "/products/:productId/track",
+      "path": "/products/:productId/track",
+      "component": "ProductTrackPage",
+      "title": "product.title.track",
+      "order": 999,
+      "perm": "product-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": []
+    },
+    {
+      "key": "/products/batch-edit",
+      "path": "/products/batch-edit",
+      "component": "ProductBatchEditPage",
+      "title": "product.title.batchEdit",
+      "order": 999,
+      "perm": "product-edit",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "products",
+      "buttons": []
+    },
+    {
+      "key": "/products/kanban",
+      "path": "/products/kanban",
+      "component": "ProductKanbanPage",
+      "title": "product.title.kanban",
+      "order": 2,
+      "perm": "product-view",
+      "hidden": false,
+      "menu": "product",
+      "buttons": []
+    },
+    {
+      "key": "/programs",
+      "path": "/programs",
+      "component": "ProgramListPage",
+      "title": "project.title.programList",
+      "order": 1,
+      "perm": "program-view",
+      "hidden": false,
+      "menu": "project",
+      "buttons": [
+        "program-create",
+        "program-delete"
+      ]
+    },
+    {
+      "key": "/programs/:programId",
+      "path": "/programs/:programId",
+      "component": "ProgramDetailPage",
+      "title": "project.title.programDetail",
+      "order": 999,
+      "perm": "program-view",
+      "hidden": true,
+      "activeMenu": "/programs",
+      "menu": "programs",
+      "buttons": [
+        "program-edit"
+      ]
+    },
+    {
+      "key": "/projects",
+      "path": "/projects",
+      "component": "ProjectListPage",
+      "title": "project.title.list",
+      "order": 2,
+      "perm": "project-view",
+      "hidden": false,
+      "menu": "project",
+      "buttons": [
+        "project-create",
+        "project-delete"
+      ]
+    },
+    {
+      "key": "/projects/:projectId",
+      "path": "/projects/:projectId",
+      "component": "ProjectDetailPage",
+      "title": "project.title.detail",
+      "order": 999,
+      "perm": "project-view",
+      "hidden": true,
+      "activeMenu": "/projects",
+      "menu": "projects",
+      "buttons": [
+        "project-edit"
+      ]
+    },
+    {
+      "key": "/projects/:projectId/executions",
+      "path": "/projects/:projectId/executions",
+      "component": "ProjectExecutionListPage",
+      "title": "project.title.executionList",
+      "order": 999,
+      "perm": "execution-view",
+      "hidden": true,
+      "activeMenu": "/projects",
+      "menu": "projects",
+      "buttons": [
+        "execution-create"
+      ]
+    },
+    {
+      "key": "/projects/:projectId/members",
+      "path": "/projects/:projectId/members",
+      "component": "ProjectMemberPage",
+      "title": "project.title.members",
+      "order": 999,
+      "perm": "project-view",
+      "hidden": true,
+      "activeMenu": "/projects",
+      "menu": "projects",
+      "buttons": []
+    },
+    {
+      "key": "/projects/:projectId/stakeholders",
+      "path": "/projects/:projectId/stakeholders",
+      "component": "ProjectStakeholderPage",
+      "title": "project.title.stakeholders",
+      "order": 999,
+      "perm": "stakeholder-view",
+      "hidden": true,
+      "activeMenu": "/projects",
+      "menu": "projects",
+      "buttons": [
+        "stakeholder-manage"
+      ]
+    },
+    {
+      "key": "/projects/:projectId/stories",
+      "path": "/projects/:projectId/stories",
+      "component": "ProjectStoryListPage",
+      "title": "project.title.stories",
+      "order": 999,
+      "perm": "project-view",
+      "hidden": true,
+      "activeMenu": "/projects",
+      "menu": "projects",
+      "buttons": [
+        "project-link-story"
+      ]
+    },
+    {
+      "key": "/projects/:projectId/weekly-report",
+      "path": "/projects/:projectId/weekly-report",
+      "component": "WeeklyReportPage",
+      "title": "weeklyReport.title",
+      "order": 999,
+      "perm": "weekly-report-view",
+      "hidden": true,
+      "activeMenu": "/projects",
+      "menu": "projects",
+      "buttons": []
+    },
+    {
+      "key": "/projects/:projectId/whitelist",
+      "path": "/projects/:projectId/whitelist",
+      "component": "ProjectWhitelistPage",
+      "title": "project.title.whitelist",
+      "order": 999,
+      "perm": "project-view",
+      "hidden": true,
+      "activeMenu": "/projects",
+      "menu": "projects",
+      "buttons": [
+        "project-whitelist"
+      ]
+    },
+    {
+      "key": "/releases/:releaseId",
+      "path": "/releases/:releaseId",
+      "component": "ReleaseDetailPage",
+      "title": "release.title.detail",
+      "order": 999,
+      "perm": "release-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "releases",
+      "buttons": []
+    },
+    {
+      "key": "/reports/:reportId",
+      "path": "/reports/:reportId",
+      "component": "ReportDetailPage",
+      "title": "quality.title.reportDetail",
+      "order": 999,
+      "perm": "report-view",
+      "hidden": true,
+      "activeMenu": "/executions",
+      "menu": "reports",
+      "buttons": [
+        "report-delete",
+        "report-edit"
+      ]
+    },
+    {
+      "key": "/settings/stages",
+      "path": "/settings/stages",
+      "component": "StageListPage",
+      "title": "stage.title.list",
+      "order": 3,
+      "perm": "stage-view",
+      "hidden": false,
+      "menu": "admin",
+      "buttons": [
+        "stage-manage"
+      ]
+    },
+    {
+      "key": "/stories/:storyId",
+      "path": "/stories/:storyId",
+      "component": "StoryDetailPage",
+      "title": "story.title.detail",
+      "order": 999,
+      "perm": "story-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "stories",
+      "buttons": [
+        "file-upload",
+        "story-delete"
+      ]
+    },
+    {
+      "key": "/stories/batch-edit",
+      "path": "/stories/batch-edit",
+      "component": "StoryBatchEditPage",
+      "title": "story.title.batchEdit",
+      "order": 999,
+      "perm": "story-edit",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "stories",
+      "buttons": []
+    },
+    {
+      "key": "/suites/:suiteId",
+      "path": "/suites/:suiteId",
+      "component": "SuiteDetailPage",
+      "title": "quality.title.suiteDetail",
+      "order": 999,
+      "perm": "suite-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "suites",
+      "buttons": [
+        "suite-delete",
+        "suite-edit",
+        "suite-link-case"
+      ]
+    },
+    {
+      "key": "/tasks/:taskId",
+      "path": "/tasks/:taskId",
+      "component": "TaskDetailPage",
+      "title": "task.title.detail",
+      "order": 999,
+      "perm": "task-view",
+      "hidden": true,
+      "activeMenu": "/executions",
+      "menu": "tasks",
+      "buttons": [
+        "file-upload",
+        "task-create",
+        "task-delete",
+        "task-edit",
+        "task-effort"
+      ]
+    },
+    {
+      "key": "/tasks/batch-edit",
+      "path": "/tasks/batch-edit",
+      "component": "TaskBatchEditPage",
+      "title": "task.title.batchEdit",
+      "order": 999,
+      "perm": "task-edit",
+      "hidden": true,
+      "activeMenu": "/executions",
+      "menu": "tasks",
+      "buttons": [
+        "task-assign",
+        "task-cancel",
+        "task-close",
+        "task-edit",
+        "task-pause",
+        "task-resume",
+        "task-start"
+      ]
+    },
+    {
+      "key": "/test-cases/:caseId",
+      "path": "/test-cases/:caseId",
+      "component": "TestCaseDetailPage",
+      "title": "quality.title.testCaseDetail",
+      "order": 999,
+      "perm": "testcase-view",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "test-cases",
+      "buttons": [
+        "bug-create",
+        "file-upload",
+        "testcase-delete"
+      ]
+    },
+    {
+      "key": "/test-cases/batch-edit",
+      "path": "/test-cases/batch-edit",
+      "component": "TestCaseBatchEditPage",
+      "title": "quality.title.caseBatchEdit",
+      "order": 999,
+      "perm": "testcase-edit",
+      "hidden": true,
+      "activeMenu": "/products",
+      "menu": "test-cases",
+      "buttons": []
+    },
+    {
+      "key": "/test-runs/:testRunId",
+      "path": "/test-runs/:testRunId",
+      "component": "TestRunDetailPage",
+      "title": "quality.title.testRunDetail",
+      "order": 999,
+      "perm": "testrun-view",
+      "hidden": true,
+      "activeMenu": "/executions",
+      "menu": "test-runs",
+      "buttons": [
+        "testrun-delete"
+      ]
+    },
+    {
+      "key": "/test-runs/:testRunId/cases",
+      "path": "/test-runs/:testRunId/cases",
+      "component": "TestRunCasesPage",
+      "title": "quality.title.testRunCases",
+      "order": 999,
+      "perm": "testrun-view",
+      "hidden": true,
+      "activeMenu": "/executions",
+      "menu": "test-runs",
+      "buttons": [
+        "testrun-assign-case",
+        "testrun-link-case",
+        "testrun-record-result"
+      ]
+    },
+    {
+      "key": "/test-runs/:testRunId/reports/case-pass-rate",
+      "path": "/test-runs/:testRunId/reports/case-pass-rate",
+      "component": "ReportCasePassRatePage",
+      "title": "report.title.casePassRate",
+      "order": 999,
+      "perm": "report-view",
+      "hidden": true,
+      "activeMenu": "/executions",
+      "menu": "test-runs",
+      "buttons": []
+    },
+    {
+      "key": "/todos/:todoId",
+      "path": "/todos/:todoId",
+      "component": "TodoDetailPage",
+      "title": "workspace.title.todoDetail",
+      "order": 999,
+      "perm": "todo-view",
+      "hidden": true,
+      "activeMenu": "/my/todos",
+      "menu": "todos",
+      "buttons": [
+        "todo-delete",
+        "todo-edit"
+      ]
+    },
+    {
+      "key": "/todos/batch-create",
+      "path": "/todos/batch-create",
+      "component": "TodoBatchCreatePage",
+      "title": "workspace.title.todoBatchCreate",
+      "order": 999,
+      "perm": "todo-create",
+      "hidden": true,
+      "activeMenu": "/my/todos",
+      "menu": "todos",
+      "buttons": []
+    },
+    {
+      "key": "/todos/batch-edit",
+      "path": "/todos/batch-edit",
+      "component": "TodoBatchEditPage",
+      "title": "workspace.title.todoBatchEdit",
+      "order": 999,
+      "perm": "todo-edit",
+      "hidden": true,
+      "activeMenu": "/my/todos",
+      "menu": "todos",
+      "buttons": [
+        "todo-assign"
+      ]
+    }
+  ]
+}

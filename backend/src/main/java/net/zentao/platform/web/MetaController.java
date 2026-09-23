@@ -24,6 +24,6 @@ public class MetaController {
   @GetMapping("/meta/{domain}")
   @Operation(operationId = "getMeta")
   public DataEnvelope<MetaView> getMeta(@PathVariable String domain, @RequestParam(required = false) String form) {
-    return DataEnvelope.of(registry.get(domain).orElseThrow(() -> ApiException.notFound("域 " + domain)));
+    return DataEnvelope.of(registry.get(domain).orElseThrow(() -> ApiException.notFound("entity.metaDomain")));
   }
 }

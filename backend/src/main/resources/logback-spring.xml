@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  T75/OPS-11 日志配置（有了本文件，application.yml 的 logging.pattern.* 不再生效——人读图案已随迁到下方 CONSOLE）：
+
+  - 结构化：JSON（Spring Boot 4 内置 StructuredLogEncoder + logstash 格式，**零新依赖**）。
+    JSON 每行必带 traceId（MDC，TraceIdFilter 置入）与 ISO-8601 时间戳（@timestamp）。
+  - 文件恒 JSON（ELK/Loki 采集面）；控制台 prod profile 走 JSON（容器 stdout 采集），其余环境保持人读。
+    容器/生产部署请置 SPRING_PROFILES_ACTIVE=prod。
+  - 滚动保留：按天 + 每 50MB 切（SizeAndTimeBasedRollingPolicy），保留 14 份（maxHistory ≈ 14 天），总量 1GB 封顶。
+  - 级别：root 恒 INFO；net.zentao 及子包可经 zentao.log.level 调（application.yml）。
+-->
+<configuration>
+  <springProperty scope="context" name="logLevel" source="zentao.log.level" defaultValue="INFO"/>
+  <springProperty scope="context" name="logFile" source="zentao.log.file" defaultValue="data/logs/zentao.log"/>
+
+  <springProfile name="prod">
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder class="org.springframework.boot.logging.logback.StructuredLogEncoder">
+        <format>logstash</format>
+      </encoder>
+    </appender>
+  </springProfile>
+  <springProfile name="!prod">
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <!-- 与迁移前 application.yml 的 logging.pattern.console 逐字相同（行为冻结）：
+             %X{traceId:-} 让过滤器之外（启动期）的日志不炸成空占位 -->
+        <pattern>%d{HH:mm:ss.SSS} %-5level [%X{traceId:-}] %logger{36} - %msg%n</pattern>
+      </encoder>
+    </appender>
+  </springProfile>
+
+  <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${logFile}</file>
+    <encoder class="org.springframework.boot.logging.logback.StructuredLogEncoder">
+      <format>logstash</format>
+    </encoder>
+    <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+      <fileNamePattern>${logFile}.%d{yyyy-MM-dd}.%i</fileNamePattern>
+      <maxFileSize>50MB</maxFileSize>
+      <maxHistory>14</maxHistory>
+      <totalSizeCap>1GB</totalSizeCap>
+    </rollingPolicy>
+  </appender>
+
+  <logger name="net.zentao" level="${logLevel}"/>
+
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="FILE"/>
+  </root>
+</configuration>

@@ -43,7 +43,7 @@ public class UpdateDocHandler {
   public Doc handle(SessionPrincipal actor, long docId, DocUpdateRequest command) {
     Doc doc = access.requireEditableDoc(actor, docId);
     if (command.lockVersion() == null || command.lockVersion() != doc.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     Map<String, String> errors = DocFields.errors();
     if (command.title() != null) {
@@ -77,7 +77,7 @@ public class UpdateDocHandler {
         command.editors(), command.readers(), command.notifyAccounts(), command.sort());
     doc.markUpdatedBy(actor.account());
     Doc saved = repository.update(doc)
-        .orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+        .orElseThrow(() -> ApiException.lockConflict());
     if (command.parentId() != null) {
       String newPath = parent == null ? "," + docId + "," : parent.path() + docId + ",";
       saved.applyPath(newPath);

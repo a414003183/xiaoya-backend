@@ -11,6 +11,7 @@ import java.util.function.Function;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.ProductApi;
 import net.zentao.quality.api.ResultView;
@@ -84,8 +85,7 @@ public class TestRunQueryService {
     List<TestRunView> items = repository.queryPage(query, filters.offset(), filters.limit()).stream()
         .map(TestRunView::of)
         .toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, RUN_COLUMNS::get, specialOf(principal), injected);
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), RUN_COLUMNS::get, specialOf(principal), injected);
     return new TestRunList(items, repository.countByQuery(countQuery));
   }
 
@@ -123,8 +123,7 @@ public class TestRunQueryService {
               testCase == null ? null : testCase.priority());
         })
         .toList();
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, RUN_CASE_COLUMNS::get, specialOf(principal), injected);
+    QueryWrapper countQuery = FilterPredicate.compile(filters.forCount(), RUN_CASE_COLUMNS::get, specialOf(principal), injected);
     return new RunCaseList(items, resultRepository.countByQuery(countQuery));
   }
 
@@ -145,6 +144,6 @@ public class TestRunQueryService {
     if (q == null || q.isBlank()) {
       return null;
     }
-    return new QueryColumn("name").like("%" + q + "%");
+    return new QueryColumn("name").likeRaw(LikePatterns.contains(q));
   }
 }

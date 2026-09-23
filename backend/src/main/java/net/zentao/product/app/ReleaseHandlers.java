@@ -9,6 +9,7 @@ import java.util.Map;
 import net.zentao.org.api.AccountApi;
 import net.zentao.platform.activity.ActivityRecorder;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.notification.NotificationRecorder;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.workflow.WorkflowEngine;
@@ -105,7 +106,7 @@ public class ReleaseHandlers {
   public ReleaseView update(SessionPrincipal actor, long releaseId, ReleaseUpdateRequest command) {
     Release release = require(actor, releaseId);
     if (command.lockVersion() == null || command.lockVersion() != release.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     if (command.name() != null) {
       validateName(command.name());
@@ -135,13 +136,13 @@ public class ReleaseHandlers {
   }
 
   Release require(SessionPrincipal actor, long releaseId) {
-    Release release = repository.findActiveById(releaseId).orElseThrow(() -> ApiException.notFound("发布"));
+    Release release = repository.findActiveById(releaseId).orElseThrow(() -> ApiException.notFound("entity.release"));
     ProductGuard.requireVisible(productRepository, productApi, actor, release.productId());
     return release;
   }
 
   Release save(Release release) {
-    return repository.update(release).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+    return repository.update(release).orElseThrow(() -> ApiException.lockConflict());
   }
 
   void requireStoriesInProduct(long productId, List<Long> storyIds) {
@@ -150,7 +151,7 @@ public class ReleaseHandlers {
     }
     List<StoryView> found = storyApi.findByIds(productId, storyIds);
     if (found.size() != storyIds.size()) {
-      throw ApiException.guardNotSatisfied("需求不存在或不属于该产品。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "product.guard.storyNotInProduct");
     }
   }
 

@@ -2,6 +2,7 @@ package net.zentao.product.app;
 
 import java.util.List;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.product.api.BuildView;
 import net.zentao.product.api.LinkRequest;
@@ -37,7 +38,7 @@ public class BuildLinkHandler {
         || !(List.of("story", "bug").contains(request.objectType()))
         || request.ids() == null
         || request.ids().isEmpty()) {
-      throw ApiException.guardNotSatisfied("objectType ∈ story|bug 且 ids 非空。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "build.guard.linkObjectInvalid");
     }
     Build build = buildHandlers.require(actor, buildId);
     List<Long> ids = request.ids().stream().distinct().toList();

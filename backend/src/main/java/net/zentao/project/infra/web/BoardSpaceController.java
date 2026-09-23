@@ -2,6 +2,8 @@ package net.zentao.project.infra.web;
 
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.CommentRequest;
@@ -51,6 +53,7 @@ public class BoardSpaceController {
   @PostMapping("/board-spaces")
   @Operation(operationId = "createBoardSpace")
   @RequirePrivilege("board-space-create")
+  @Audit(action = "board-space-create", objectType = "boardSpace")
   public DataEnvelope<BoardSpaceView> create(@RequestBody BoardSpaceCreateRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(handlers.create(resolver.resolve(request), body));
@@ -66,6 +69,8 @@ public class BoardSpaceController {
   @PatchMapping("/board-spaces/{boardSpaceId}")
   @Operation(operationId = "updateBoardSpace")
   @RequirePrivilege("board-space-edit")
+  @Audit(action = "board-space-update", objectType = "boardSpace")
+  @AuditDiff(objectType = "boardSpace")
   public DataEnvelope<BoardSpaceView> update(@PathVariable long boardSpaceId,
       @RequestBody BoardSpaceUpdateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.update(resolver.resolve(request), boardSpaceId, body));
@@ -74,6 +79,8 @@ public class BoardSpaceController {
   @PostMapping("/board-spaces/{boardSpaceId}/close")
   @Operation(operationId = "closeBoardSpace")
   @RequirePrivilege("board-space-close")
+  @Audit(action = "board-space-close", objectType = "boardSpace")
+  @AuditDiff(objectType = "boardSpace")
   public DataEnvelope<BoardSpaceView> close(@PathVariable long boardSpaceId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.close(resolver.resolve(request), boardSpaceId, comment(body)));
@@ -82,6 +89,8 @@ public class BoardSpaceController {
   @PostMapping("/board-spaces/{boardSpaceId}/activate")
   @Operation(operationId = "activateBoardSpace")
   @RequirePrivilege("board-space-close")
+  @Audit(action = "board-space-activate", objectType = "boardSpace")
+  @AuditDiff(objectType = "boardSpace")
   public DataEnvelope<BoardSpaceView> activate(@PathVariable long boardSpaceId,
       @RequestBody(required = false) CommentRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handlers.activate(resolver.resolve(request), boardSpaceId, comment(body)));
@@ -90,6 +99,8 @@ public class BoardSpaceController {
   @DeleteMapping("/board-spaces/{boardSpaceId}")
   @Operation(operationId = "deleteBoardSpace")
   @RequirePrivilege("board-space-edit")
+  @Audit(action = "board-space-delete", objectType = "boardSpace")
+  @AuditDiff(objectType = "boardSpace")
   public DataEnvelope<Void> delete(@PathVariable long boardSpaceId, HttpServletRequest request) {
     handlers.delete(resolver.resolve(request), boardSpaceId);
     return DataEnvelope.empty();
@@ -98,6 +109,7 @@ public class BoardSpaceController {
   @PostMapping("/board-spaces/{boardSpaceId}/boards")
   @Operation(operationId = "createBoard")
   @RequirePrivilege("board-create")
+  @Audit(action = "board-space-board-create", objectType = "boardSpace")
   public DataEnvelope<BoardView> createBoard(@PathVariable long boardSpaceId,
       @RequestBody BoardCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(boardHandlers.create(resolver.resolve(request), boardSpaceId, body));

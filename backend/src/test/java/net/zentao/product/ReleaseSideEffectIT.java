@@ -61,10 +61,10 @@ class ReleaseSideEffectIT extends MySqlContainerSupport {
     if (groupId != 0) {
       return groupId;
     }
-    HttpResponse<String> group = send("POST", "/api/v1/groups", "{\"name\":\"IT 发布组\"}", adminCookie);
+    HttpResponse<String> group = send("POST", "/api/v1/roles", "{\"name\":\"IT 发布组\"}", adminCookie);
     assertEquals(200, group.statusCode(), group.body());
     groupId = json.readTree(group.body()).at("/data/id").asLong();
-    send("PUT", "/api/v1/groups/" + groupId + "/privileges",
+    send("PUT", "/api/v1/roles/" + groupId + "/privileges",
         "{\"codes\":[\"product-view\",\"story-view\",\"release-view\",\"release-create\",\"release-terminate\"]}",
         adminCookie);
     return groupId;
@@ -74,7 +74,7 @@ class ReleaseSideEffectIT extends MySqlContainerSupport {
   @DisplayName("创建发布：需求 stage → released + 双侧动态流 + notifyAccounts 收到通知；重复 terminate 42202")
   void releaseSideEffects() throws Exception {
     HttpResponse<String> account = send("POST", "/api/v1/accounts",
-        "{\"account\":\"it-release-qa\",\"password\":\"secret123\",\"realName\":\"发布观察员\",\"groupIds\":["
+        "{\"account\":\"it-release-qa\",\"password\":\"secret123\",\"realName\":\"发布观察员\",\"roleIds\":["
             + ensureGroup() + "]}",
         adminCookie);
     assertEquals(200, account.statusCode(), account.body());

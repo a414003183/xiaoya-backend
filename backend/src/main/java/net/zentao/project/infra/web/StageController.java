@@ -2,6 +2,8 @@ package net.zentao.project.infra.web;
 
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
+import net.zentao.platform.audit.Audit;
+import net.zentao.platform.audit.AuditDiff;
 import net.zentao.platform.rbac.RequirePrivilege;
 import net.zentao.platform.session.SessionResolver;
 import net.zentao.platform.web.DataEnvelope;
@@ -41,6 +43,7 @@ public class StageController {
   @PostMapping("/stages")
   @Operation(operationId = "createStage")
   @RequirePrivilege("stage-manage")
+  @Audit(action = "stage-create", objectType = "stage")
   public DataEnvelope<StageView> create(@RequestBody StageCreateRequest body, HttpServletRequest request) {
     return DataEnvelope.of(handler.create(resolver.resolve(request), body));
   }
@@ -48,6 +51,8 @@ public class StageController {
   @PatchMapping("/stages/{stageId}")
   @Operation(operationId = "updateStage")
   @RequirePrivilege("stage-manage")
+  @Audit(action = "stage-update", objectType = "stage")
+  @AuditDiff(objectType = "stage")
   public DataEnvelope<StageView> update(@PathVariable long stageId, @RequestBody StageUpdateRequest body,
       HttpServletRequest request) {
     return DataEnvelope.of(handler.update(resolver.resolve(request), stageId, body));
@@ -56,6 +61,8 @@ public class StageController {
   @DeleteMapping("/stages/{stageId}")
   @Operation(operationId = "deleteStage")
   @RequirePrivilege("stage-manage")
+  @Audit(action = "stage-delete", objectType = "stage")
+  @AuditDiff(objectType = "stage")
   public DataEnvelope<Void> delete(@PathVariable long stageId, HttpServletRequest request) {
     handler.delete(resolver.resolve(request), stageId);
     return DataEnvelope.empty();

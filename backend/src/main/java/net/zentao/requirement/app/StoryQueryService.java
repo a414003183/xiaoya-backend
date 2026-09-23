@@ -10,6 +10,7 @@ import java.util.Set;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.search.SearchResultView;
 import net.zentao.product.api.ProductApi;
@@ -71,9 +72,9 @@ public class StoryQueryService {
    * 命中 title/keywords，按 updatedAt 倒序取 limit 条。
    */
   public List<SearchResultView> search(String q, int limit, SessionPrincipal principal, String type) {
-    String like = "%" + q + "%";
+    String like = LikePatterns.contains(q);
     QueryCondition injected = new QueryColumn("deleted_at").isNull()
-        .and(new QueryColumn("title").like(like).or(new QueryColumn("keywords").like(like)));
+        .and(new QueryColumn("title").likeRaw(like).or(new QueryColumn("keywords").likeRaw(like)));
     if (type != null) {
       injected = injected.and(new QueryColumn("type").eq(type));
     }
@@ -168,8 +169,7 @@ public class StoryQueryService {
     List<StoryView> items = repository.queryPage(query, filters.offset(), filters.limit()).stream()
         .map(StoryView::of)
         .toList();
-    Filters countFilters = new Filters(comparable.clauses(), List.of(), 1, 1, filters.q());
-    QueryWrapper countQuery = FilterPredicate.compile(countFilters, COLUMNS::get, specialOf(principal), injected);
+    QueryWrapper countQuery = FilterPredicate.compile(comparable.forCount(), COLUMNS::get, specialOf(principal), injected);
     return new StoryList(items, repository.countByQuery(countQuery));
   }
 
@@ -184,7 +184,7 @@ public class StoryQueryService {
       if ("@me".equals(account)) {
         account = principal.account();
       }
-      QueryCondition match = new QueryColumn("reviewers").like("%\"" + account + "\"%");
+      QueryCondition match = new QueryColumn("reviewers").likeRaw(LikePatterns.jsonElement(account));
       condition = condition == null ? match : condition.or(match);
     }
     return condition;
@@ -199,7 +199,7 @@ public class StoryQueryService {
     if (q == null || q.isBlank()) {
       return null;
     }
-    String like = "%" + q + "%";
-    return new QueryColumn("title").like(like).or(new QueryColumn("keywords").like(like));
+    String like = LikePatterns.contains(q);
+    return new QueryColumn("title").likeRaw(like).or(new QueryColumn("keywords").likeRaw(like));
   }
 }

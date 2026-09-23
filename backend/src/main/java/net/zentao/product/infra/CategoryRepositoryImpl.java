@@ -7,6 +7,7 @@ import com.mybatisflex.core.row.Row;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.product.domain.Category;
 import net.zentao.product.domain.CategoryRepository;
 import org.springframework.stereotype.Component;
@@ -65,7 +66,7 @@ public class CategoryRepositoryImpl implements CategoryRepository {
     if (ids.isEmpty()) {
       return 0;
     }
-    return Db.updateByCondition("category", Row.of("deleted_at", Instant.now()), new QueryColumn("id").in(ids));
+    return SoftDeletes.apply("category", Row.of("deleted_at", Instant.now()), new QueryColumn("id").in(ids));
   }
 
   private static Category toDomain(CategoryPO po) {

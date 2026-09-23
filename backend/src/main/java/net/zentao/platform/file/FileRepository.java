@@ -2,6 +2,8 @@ package net.zentao.platform.file;
 
 import com.mybatisflex.core.query.QueryColumn;
 import com.mybatisflex.core.query.QueryWrapper;
+import com.mybatisflex.core.row.Db;
+import com.mybatisflex.core.row.Row;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +32,14 @@ public class FileRepository {
 
   public void update(FilePO po) {
     mapper.update(po);
+  }
+
+  /**
+   * 下载计数 +1（T57 / BE-05）：**单条 SQL 自增**，不是「读出来 +1 再整行写回」。
+   * 旧写法在并发下载下必丢计数（实测 16 并发只剩 1），且整行写回会拿陈旧快照覆盖同表其它列。
+   */
+  public int incrementDownloads(long id) {
+    return Db.updateByCondition("file", new Row().setRaw("downloads", "downloads + 1"), ID.eq(id));
   }
 
   /** 软删（deleted_at 置位）。 */

@@ -46,7 +46,7 @@ public class UpdateTaskHandler {
   public TaskView handle(SessionPrincipal actor, long taskId, TaskUpdateRequest command) {
     Task task = TaskGuard.requireWritable(repository, executionApi, actor, taskId);
     if (command.lockVersion() == null || command.lockVersion() != task.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新后重试。");
+      throw ApiException.lockConflict();
     }
     TaskFields.hours("estimateHours", command.estimateHours(), false);
     TaskFields.accounts(accountApi, Map.of(), command.notifyAccounts());
@@ -57,7 +57,7 @@ public class UpdateTaskHandler {
         command.keywords(), command.description(), command.notifyAccounts());
     task.markUpdatedBy(actor.account());
     Task saved = repository.update(task)
-        .orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新后重试。"));
+        .orElseThrow(() -> ApiException.lockConflict());
     return TaskView.of(saved);
   }
 }

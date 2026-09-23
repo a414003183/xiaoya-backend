@@ -2,6 +2,8 @@ package net.zentao.org;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -12,16 +14,21 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
+import net.zentao.platform.rbac.DataScope;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
- * 账号角色字典 API（org 卡 §3.4；旧禅道「后台→自定义→用户→角色列表」的等价能力）：
- * 内置角色九项/seeds 双语名、新建（code 校验与唯一）、改名与排序（乐观锁）、删除守卫（内置/占用）、
- * 账号写路径的角色码校验、meta 选项随字典实时变化。
+ * 角色 API（T23 统一实体）：一个角色 = 权限码 + 成员 + 数据权限。
+ *
+ * <p>覆盖迁移结果（超管角色 id=1 + 旧岗位角色成为内置角色）、新建/改名/排序的校验与乐观锁、
+ * 删除守卫与级联、权限矩阵整体替换与 /me 即时生效、成员差量、复制、数据权限写入与 DataScope 联动，
+ * 以及账号侧 roleIds 的写路径（不存在的角色 id → 42201）。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class RoleApiTest {
@@ -29,14 +36,22 @@ class RoleApiTest {
   @Value("${local.server.port}")
   int port;
 
+  @Autowired
+  JdbcTemplate jdbcTemplate;
+
+  @Autowired
+  DataScope dataScope;
+
   private final HttpClient http = HttpClient.newHttpClient();
   private final ObjectMapper json = new ObjectMapper();
   private String adminCookie;
+  private long roleId;
 
   @BeforeEach
   void seed() throws Exception {
     adminCookie = cookieOf(send("POST", "/api/v1/session",
         "{\"account\":\"admin\",\"password\":\"admin123\"}", null));
+    roleId = createRole("研发组-" + System.nanoTime(), "测试角色");
   }
 
   private String cookieOf(HttpResponse<String> response) {
@@ -47,158 +62,274 @@ class RoleApiTest {
         .split(";", 2)[0];
   }
 
+  private long createRole(String name, String description) throws Exception {
+    HttpResponse<String> response = send("POST", "/api/v1/roles",
+        "{\"name\":\"" + name + "\",\"description\":\"" + description + "\"}", adminCookie);
+    assertEquals(200, response.statusCode(), response.body());
+    return json.readTree(response.body()).at("/data/id").asLong();
+  }
+
   private HttpResponse<String> send(String method, String path, String body, String cookie) throws Exception {
-    HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
-        .header("Content-Type", "application/json")
-        .header("X-Requested-With", "fetch");
+    var builder = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+        .header("X-Requested-With", "fetch")
+        .header("Content-Type", "application/json");
     if (cookie != null) {
       builder.header("Cookie", cookie);
     }
-    return http.send(builder.method(method, HttpRequest.BodyPublishers.ofString(body == null ? "{}" : body)).build(),
-        HttpResponse.BodyHandlers.ofString());
+    builder.method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(body));
+    return http.send(builder.build(), HttpResponse.BodyHandlers.ofString());
   }
 
-  private JsonNode data(HttpResponse<String> response) throws Exception {
+  private JsonNode items() throws Exception {
+    HttpResponse<String> response = send("GET", "/api/v1/roles", null, adminCookie);
     assertEquals(200, response.statusCode(), response.body());
-    return json.readTree(response.body()).get("data");
+    return json.readTree(response.body()).at("/data/items");
   }
 
-  private List<String> codes() throws Exception {
-    JsonNode items = data(send("GET", "/api/v1/roles", null, adminCookie)).get("items");
-    List<String> codes = new ArrayList<>();
-    items.forEach(item -> codes.add(item.get("code").asText()));
-    return codes;
+  private static void assertFalse2(boolean condition, String message) {
+    if (condition) {
+      throw new AssertionError(message);
+    }
   }
 
   @Test
-  @DisplayName("内置九角色随迁移种入，labels 双语且按 sort 升序")
-  void builtinSeeded() throws Exception {
-    JsonNode items = data(send("GET", "/api/v1/roles", null, adminCookie)).get("items");
-    List<String> builtinCodes = new ArrayList<>();
-    for (JsonNode item : items) {
-      if (item.get("builtin").asBoolean()) {
-        builtinCodes.add(item.get("code").asText());
+  @DisplayName("迁移结果：超管角色 id=1 + 旧岗位角色成为内置角色（名字取自中文标签）")
+  void migratedRoles() throws Exception {
+    JsonNode roles = items();
+    JsonNode superRole = null;
+    List<String> builtinNames = new ArrayList<>();
+    for (JsonNode role : roles) {
+      if (role.get("id").asLong() == 1L) {
+        superRole = role;
+      }
+      if (role.get("builtin").asBoolean()) {
+        builtinNames.add(role.get("name").asText());
       }
     }
-    assertEquals(List.of("dev", "qa", "pm", "po", "td", "pd", "qd", "top", "others"), builtinCodes);
-    JsonNode dev = items.get(0);
-    assertEquals("研发", dev.get("labels").get("zh-CN").asText());
-    assertEquals("Developer", dev.get("labels").get("en").asText());
-    assertTrue(dev.get("builtin").asBoolean());
-    assertEquals(10, dev.get("sort").asInt());
+    assertTrue(superRole != null, "超管角色 id=1 必须存在：" + roles);
+    assertEquals("管理员", superRole.get("name").asText());
+    assertTrue(superRole.get("builtin").asBoolean(), "超管角色是内置角色");
+    // 超管角色不落 role_priv 行（PrivilegeChecker 短路「全过」），但权限数按编目全集回答
+    assertTrue(superRole.get("privilegeCount").asInt() > 100, "超管角色权限数 = 权限编目全集：" + superRole);
+    assertTrue(builtinNames.containsAll(List.of("管理员", "研发", "测试", "项目经理")),
+        "旧岗位角色应成为内置角色：" + builtinNames);
   }
 
   @Test
-  @DisplayName("新建角色：code 合法且唯一，labels 至少一项；非法 code/重复/空 labels → 42201")
+  @DisplayName("新建角色：name 必填且唯一、code 可选且合法唯一；重复/非法 → 42201")
   void createValidates() throws Exception {
+    HttpResponse<String> duplicate = send("POST", "/api/v1/roles", "{\"name\":\"管理员\"}", adminCookie);
+    assertEquals(422, duplicate.statusCode(), duplicate.body());
+    assertTrue(duplicate.body().contains("42201"), duplicate.body());
+
     String code = "ops-" + System.nanoTime() % 100000;
     HttpResponse<String> created = send("POST", "/api/v1/roles",
-        "{\"code\":\"" + code + "\",\"labels\":{\"zh-CN\":\"运维\",\"en\":\"Ops\"}}", adminCookie);
+        "{\"name\":\"运维-" + code + "\",\"code\":\"" + code + "\",\"description\":\"值班\"}", adminCookie);
     assertEquals(200, created.statusCode(), created.body());
-    assertEquals("运维", data(created).get("labels").get("zh-CN").asText());
-    assertFalse(data(created).get("builtin").asBoolean());
-    assertTrue(codes().contains(code));
+    JsonNode role = json.readTree(created.body()).at("/data");
+    assertEquals(code, role.get("code").asText());
+    assertFalse(role.get("builtin").asBoolean(), "新建角色不是内置角色");
+    assertEquals(0, role.get("privilegeCount").asInt());
+    assertEquals(0, role.get("memberCount").asInt());
 
     assertEquals(422, send("POST", "/api/v1/roles",
-        "{\"code\":\"" + code + "\",\"labels\":{\"zh-CN\":\"重复\"}}", adminCookie).statusCode());
+        "{\"name\":\"另一个-" + code + "\",\"code\":\"" + code + "\"}", adminCookie).statusCode(), "code 唯一");
     assertEquals(422, send("POST", "/api/v1/roles",
-        "{\"code\":\"Bad_Code\",\"labels\":{\"zh-CN\":\"大写\"}}", adminCookie).statusCode());
-    assertEquals(422, send("POST", "/api/v1/roles",
-        "{\"code\":\"blanklabels\",\"labels\":{\"zh-CN\":\"   \"}}", adminCookie).statusCode());
+        "{\"name\":\"大写码-" + code + "\",\"code\":\"Bad_Code\"}", adminCookie).statusCode(), "code 形态");
+    assertEquals(422, send("POST", "/api/v1/roles", "{\"name\":\"  \"}", adminCookie).statusCode(), "name 必填");
   }
 
   @Test
-  @DisplayName("改名与排序：按语言改名、排序位生效；陈旧 lockVersion → 40901")
-  void updateLabelsAndSort() throws Exception {
-    String code = "qa-" + System.nanoTime() % 100000;
-    data(send("POST", "/api/v1/roles",
-        "{\"code\":\"" + code + "\",\"labels\":{\"zh-CN\":\"质量\",\"en\":\"Quality\"}}", adminCookie));
+  @DisplayName("改名/排序/数据权限：按 lockVersion 更新；陈旧版本 → 40901")
+  void updateFieldsAndLock() throws Exception {
+    HttpResponse<String> updated = send("PATCH", "/api/v1/roles/" + roleId,
+        "{\"name\":\"改名组-" + roleId + "\",\"description\":\"改过\",\"sort\":5,\"lockVersion\":0}", adminCookie);
+    assertEquals(200, updated.statusCode(), updated.body());
+    JsonNode view = json.readTree(updated.body()).at("/data");
+    assertEquals("改过", view.get("description").asText());
+    assertEquals(5, view.get("sort").asInt());
+    assertEquals(1, view.get("lockVersion").asInt());
 
-    JsonNode updated = data(send("PATCH", "/api/v1/roles/" + code,
-        "{\"labels\":{\"zh-CN\":\"质量保障\"},\"sort\":5,\"lockVersion\":0}", adminCookie));
-    assertEquals("质量保障", updated.get("labels").get("zh-CN").asText());
-    assertEquals(5, updated.get("sort").asInt());
-    assertEquals(1, updated.get("lockVersion").asInt());
-
-    // 陈旧版本 → 40901（PATCH 必带当前 lockVersion，3 §1 口径同权限组/账号）
-    assertEquals(409, send("PATCH", "/api/v1/roles/" + code,
-        "{\"labels\":{\"zh-CN\":\"过期写入\"},\"lockVersion\":0}", adminCookie).statusCode());
-    assertEquals(409, send("PATCH", "/api/v1/roles/" + code,
-        "{\"labels\":{\"zh-CN\":\"缺版本\"}}", adminCookie).statusCode());
+    assertEquals(409, send("PATCH", "/api/v1/roles/" + roleId,
+        "{\"description\":\"过期写入\",\"lockVersion\":0}", adminCookie).statusCode());
+    assertEquals(409, send("PATCH", "/api/v1/roles/" + roleId,
+        "{\"description\":\"缺版本\"}", adminCookie).statusCode());
   }
 
   @Test
-  @DisplayName("删除守卫：内置角色 42203；被账号占用 42203；未占用自定义角色可删")
-  void deleteGuards() throws Exception {
-    assertEquals(422, send("DELETE", "/api/v1/roles/dev", null, adminCookie).statusCode());
+  @DisplayName("T67/DB-18 审计四件落值：建角色落 created_by/created_at，改角色落 updated_by/updated_at")
+  void auditFourColumnsLandOnCreateAndUpdate() throws Exception {
+    java.util.Map<String, Object> created = jdbcTemplate.queryForMap(
+        "SELECT created_by, created_at, updated_by, updated_at FROM role WHERE id = ?", roleId);
+    assertEquals("admin", created.get("created_by"), "建角色须落 created_by");
+    assertNotNull(created.get("created_at"), "建角色须落 created_at");
+    assertNull(created.get("updated_by"), "未改过前不应有 updated_by");
+    assertNull(created.get("updated_at"), "未改过前不应有 updated_at");
 
-    String code = "temp-" + System.nanoTime() % 100000;
-    data(send("POST", "/api/v1/roles", "{\"code\":\"" + code + "\",\"labels\":{\"zh-CN\":\"临时\"}}", adminCookie));
-    String account = "roletest" + System.nanoTime() % 100000;
-    data(send("POST", "/api/v1/accounts",
-        "{\"account\":\"" + account + "\",\"password\":\"secret123\",\"realName\":\"角色测试\",\"role\":\"" + code + "\"}",
-        adminCookie));
+    HttpResponse<String> updated = send("PATCH", "/api/v1/roles/" + roleId,
+        "{\"description\":\"审计四件\",\"lockVersion\":0}", adminCookie);
+    assertEquals(200, updated.statusCode(), updated.body());
+    java.util.Map<String, Object> after = jdbcTemplate.queryForMap(
+        "SELECT updated_by, updated_at FROM role WHERE id = ?", roleId);
+    assertEquals("admin", after.get("updated_by"), "改角色须落 updated_by");
+    assertNotNull(after.get("updated_at"), "改角色须落 updated_at");
+  }
 
-    assertEquals(422, send("DELETE", "/api/v1/roles/" + code, null, adminCookie).statusCode());
-    JsonNode rows = data(send("GET", "/api/v1/roles", null, adminCookie)).get("items");
-    long used = 0;
-    for (JsonNode row : rows) {
-      if (code.equals(row.get("code").asText())) {
-        used = row.get("accountCount").asLong();
+  @Test
+  @DisplayName("角色权限矩阵：整体替换；未注册码 42201；成员 /me 即时生效；移出角色即失效")
+  void privilegesLifecycle() throws Exception {
+    HttpResponse<String> put1 = send("PUT", "/api/v1/roles/" + roleId + "/privileges",
+        "{\"codes\":[\"department-edit\",\"account-create\",\"account-view\"]}", adminCookie);
+    assertEquals(200, put1.statusCode(), put1.body());
+    HttpResponse<String> get1 = send("GET", "/api/v1/roles/" + roleId + "/privileges", null, adminCookie);
+    assertTrue(get1.body().contains("department-edit") && !get1.body().contains("role-edit"), get1.body());
+
+    send("PUT", "/api/v1/roles/" + roleId + "/privileges", "{\"codes\":[\"account-view\"]}", adminCookie);
+    HttpResponse<String> get2 = send("GET", "/api/v1/roles/" + roleId + "/privileges", null, adminCookie);
+    assertFalse2(get2.body().contains("department-edit"), "整体替换应移除未勾选码: " + get2.body());
+
+    HttpResponse<String> unregistered = send("PUT", "/api/v1/roles/" + roleId + "/privileges",
+        "{\"codes\":[\"department-edit\",\"not-a-code\"]}", adminCookie);
+    assertEquals(422, unregistered.statusCode(), unregistered.body());
+    assertTrue(unregistered.body().contains("42201"), unregistered.body());
+
+    String user = "role-user-" + System.nanoTime() % 100000;
+    HttpResponse<String> account = send("POST", "/api/v1/accounts",
+        "{\"account\":\"" + user + "\",\"password\":\"secret123\",\"realName\":\"角色成员\",\"roleIds\":[" + roleId + "]}",
+        adminCookie);
+    assertEquals(200, account.statusCode(), account.body());
+    String userCookie = cookieOf(send("POST", "/api/v1/session",
+        "{\"account\":\"" + user + "\",\"password\":\"secret123\"}", null));
+    HttpResponse<String> me = send("GET", "/api/v1/me", null, userCookie);
+    assertTrue(me.body().contains("account-view"), "角色成员 /me 应含码: " + me.body());
+
+    assertEquals(200, send("PUT", "/api/v1/roles/" + roleId + "/members", "{\"accountIds\":[]}", adminCookie).statusCode());
+    HttpResponse<String> meAfter = send("GET", "/api/v1/me", null, userCookie);
+    assertFalse2(meAfter.body().contains("account-view"), "移出角色即失效: " + meAfter.body());
+  }
+
+  @Test
+  @DisplayName("成员写：不存在账号 42201；重复去重；账号挂不存在的角色 42201；DELETE 级联；内置角色 42203")
+  void membersAndDeleteGuards() throws Exception {
+    HttpResponse<String> account = send("POST", "/api/v1/accounts",
+        "{\"account\":\"role-m2\",\"password\":\"secret123\",\"realName\":\"成员二\"}", adminCookie);
+    long accountId = json.readTree(account.body()).at("/data/id").asLong();
+
+    assertEquals(422, send("POST", "/api/v1/accounts",
+        "{\"account\":\"role-bad\",\"password\":\"secret123\",\"realName\":\"错角色\",\"roleIds\":[999999]}",
+        adminCookie).statusCode(), "账号侧：不存在的角色 id 挡在创建时");
+
+    HttpResponse<String> dup = send("PUT", "/api/v1/roles/" + roleId + "/members",
+        "{\"accountIds\":[" + accountId + "," + accountId + "]}", adminCookie);
+    assertEquals(200, dup.statusCode(), dup.body());
+    assertEquals(1, json.readTree(dup.body()).at("/data/total").asInt(), "重复应去重");
+
+    HttpResponse<String> missing = send("PUT", "/api/v1/roles/" + roleId + "/members",
+        "{\"accountIds\":[999999]}", adminCookie);
+    assertEquals(422, missing.statusCode(), missing.body());
+
+    send("PUT", "/api/v1/roles/" + roleId + "/privileges", "{\"codes\":[\"account-view\"]}", adminCookie);
+    assertEquals(200, send("DELETE", "/api/v1/roles/" + roleId, null, adminCookie).statusCode());
+    assertEquals(0, jdbcTemplate.queryForObject(
+        "SELECT COUNT(*) FROM user_role WHERE role_id = ?", Integer.class, roleId));
+    assertEquals(0, jdbcTemplate.queryForObject(
+        "SELECT COUNT(*) FROM role_priv WHERE role_id = ?", Integer.class, roleId));
+
+    HttpResponse<String> superRole = send("DELETE", "/api/v1/roles/1", null, adminCookie);
+    assertEquals(422, superRole.statusCode(), superRole.body());
+    assertTrue(superRole.body().contains("42203"), superRole.body());
+    for (JsonNode role : items()) {
+      if (role.get("builtin").asBoolean() && role.get("id").asLong() != 1L) {
+        assertEquals(422, send("DELETE", "/api/v1/roles/" + role.get("id").asLong(), null, adminCookie).statusCode(),
+            "内置角色不可删：" + role);
+        break;
       }
     }
-    assertEquals(1, used, "accountCount 应统计使用该角色的账号数");
-
-    // 账号改派到内置角色后即可删除（PATCH 的 null 语义是"不修改"（03 §1），故不能靠 role:null 清空）
-    JsonNode accountView = data(send("GET", "/api/v1/accounts?q=" + account, null, adminCookie)).get("items").get(0);
-    long accountId = accountView.get("id").asLong();
-    data(send("PATCH", "/api/v1/accounts/" + accountId,
-        "{\"role\":\"dev\",\"lockVersion\":" + accountView.get("lockVersion").asInt() + "}", adminCookie));
-    assertEquals(200, send("DELETE", "/api/v1/roles/" + code, null, adminCookie).statusCode());
-    assertFalse(codes().contains(code));
   }
 
   @Test
-  @DisplayName("账号写路径按字典校验角色码：未知码 42201，字典内新增的码可用")
-  void accountRoleValidatedAgainstDictionary() throws Exception {
-    String account = "rolechk" + System.nanoTime() % 100000;
-    assertEquals(422, send("POST", "/api/v1/accounts",
-        "{\"account\":\"" + account + "\",\"password\":\"secret123\",\"realName\":\"角色校验\",\"role\":\"nosuchrole\"}",
-        adminCookie).statusCode());
+  @DisplayName("复制角色：copyPrivileges/copyMembers 各选项生效，源角色不变")
+  void copyOptions() throws Exception {
+    HttpResponse<String> account = send("POST", "/api/v1/accounts",
+        "{\"account\":\"role-src\",\"password\":\"secret123\",\"realName\":\"源成员\"}", adminCookie);
+    long accountId = json.readTree(account.body()).at("/data/id").asLong();
+    send("PUT", "/api/v1/roles/" + roleId + "/privileges", "{\"codes\":[\"account-view\",\"department-view\"]}", adminCookie);
+    send("PUT", "/api/v1/roles/" + roleId + "/members", "{\"accountIds\":[" + accountId + "]}", adminCookie);
 
-    String code = "sales-" + System.nanoTime() % 100000;
-    data(send("POST", "/api/v1/roles", "{\"code\":\"" + code + "\",\"labels\":{\"zh-CN\":\"销售\"}}", adminCookie));
-    JsonNode created = data(send("POST", "/api/v1/accounts",
-        "{\"account\":\"" + account + "\",\"password\":\"secret123\",\"realName\":\"角色校验\",\"role\":\"" + code + "\"}",
-        adminCookie));
-    assertEquals(code, created.get("role").asText());
+    HttpResponse<String> copied = send("POST", "/api/v1/roles/" + roleId + "/copy",
+        "{\"name\":\"研发组副本-" + roleId + "\",\"copyPrivileges\":true,\"copyMembers\":false}", adminCookie);
+    assertEquals(200, copied.statusCode(), copied.body());
+    JsonNode view = json.readTree(copied.body()).at("/data");
+    assertEquals(2, view.get("privilegeCount").asInt(), "副本应含权限码");
+    assertEquals(0, view.get("memberCount").asInt(), "副本不应含成员");
+
+    HttpResponse<String> source = send("GET", "/api/v1/roles/" + roleId, null, adminCookie);
+    assertEquals(1, json.readTree(source.body()).at("/data/memberCount").asInt(), "源角色成员不变");
   }
 
   @Test
-  @DisplayName("role 字段选项走字典：meta 声明 source=roles，字典端点含新建角色（不再内置清单）")
-  void metaOptionsFollowDictionary() throws Exception {
-    String code = "meta-" + System.nanoTime() % 100000;
-    data(send("POST", "/api/v1/roles", "{\"code\":\"" + code + "\",\"labels\":{\"zh-CN\":\"元数据角色\"}}", adminCookie));
+  @DisplayName("数据权限：写入/整体替换/子键 null 清空；DataScope 并集读取联动")
+  void aclWriteReplaceClearAndDataScope() throws Exception {
+    HttpResponse<String> put1 = send("PATCH", "/api/v1/roles/" + roleId,
+        "{\"acl\":{\"products\":[1,2],\"projects\":[3]},\"lockVersion\":0}", adminCookie);
+    assertEquals(200, put1.statusCode(), put1.body());
+    JsonNode acl1 = json.readTree(put1.body()).at("/data/acl");
+    assertEquals("[1,2]", acl1.get("products").toString());
+    assertEquals("[3]", acl1.get("projects").toString());
+    assertEquals("[]", acl1.get("views").toString(), "null 子键应归一空表");
+    assertEquals("[]", acl1.get("executions").toString());
 
-    JsonNode fields = data(send("GET", "/api/v1/meta/account", null, adminCookie)).get("fields");
+    HttpResponse<String> account = send("POST", "/api/v1/accounts",
+        "{\"account\":\"acl-user\",\"password\":\"secret123\",\"realName\":\"acl成员\",\"roleIds\":[" + roleId + "]}",
+        adminCookie);
+    long accountId = json.readTree(account.body()).at("/data/id").asLong();
+    DataScope.Acl union = dataScope.aclUnion(new net.zentao.platform.session.SessionPrincipal(accountId, "acl-user"));
+    assertEquals(List.of(1L, 2L), union.products());
+    assertEquals(List.of(3L), union.projects());
+
+    int lockVersion = json.readTree(put1.body()).at("/data/lockVersion").asInt();
+    HttpResponse<String> put2 = send("PATCH", "/api/v1/roles/" + roleId,
+        "{\"acl\":{\"views\":[7],\"products\":null,\"executions\":[9]},\"lockVersion\":" + lockVersion + "}",
+        adminCookie);
+    assertEquals(200, put2.statusCode(), put2.body());
+    JsonNode acl2 = json.readTree(put2.body()).at("/data/acl");
+    assertEquals("[7]", acl2.get("views").toString());
+    assertEquals("[]", acl2.get("products").toString(), "子键 null = 清空该键");
+    assertEquals("[]", acl2.get("projects").toString(), "整体替换应移除未传键");
+    assertEquals("[9]", acl2.get("executions").toString());
+
+    String stored = jdbcTemplate.queryForObject("SELECT acl FROM role WHERE id = ?", String.class, roleId);
+    assertTrue(stored.contains("\"executions\":[9]"), stored);
+    DataScope.Acl union2 = dataScope.aclUnion(new net.zentao.platform.session.SessionPrincipal(accountId, "acl-user"));
+    assertTrue(union2.products().isEmpty() && union2.projects().isEmpty(), "清空后并集应无残留");
+  }
+
+  @Test
+  @DisplayName("角色字典与 meta：条目形 {value,label}（角色 id + 名字），meta 只声明来源 roles")
+  void dictionaryAndMeta() throws Exception {
+    String name = "字典角色-" + System.nanoTime() % 100000;
+    long id = createRole(name, "");
+
+    JsonNode fields = json.readTree(send("GET", "/api/v1/meta/account", null, adminCookie).body())
+        .at("/data/fields");
     JsonNode roleField = null;
     for (JsonNode field : fields) {
-      if ("role".equals(field.get("key").asText())) {
+      if ("roleId".equals(field.get("key").asText())) {
         roleField = field;
       }
     }
-    assertTrue(roleField != null, "meta 应含 role 字段");
-    assertEquals("roles", roleField.get("source").asText(), "meta 只声明选项来源，不再内置清单");
+    assertTrue(roleField != null, "meta 应含 roleId 字段：" + fields);
+    assertEquals("roles", roleField.get("source").asText(), "meta 只声明选项来源，不内置清单");
 
-    JsonNode dictItems = data(send("GET", "/api/v1/dicts/roles", null, adminCookie)).get("items");
-    List<String> dictCodes = new ArrayList<>();
+    JsonNode dictItems = json.readTree(send("GET", "/api/v1/dicts/roles", null, adminCookie).body())
+        .at("/data/items");
+    boolean found = false;
     for (JsonNode item : dictItems) {
-      dictCodes.add(item.get("code").asText());
-      if (code.equals(item.get("code").asText())) {
-        assertEquals("元数据角色", item.get("labels").get("zh-CN").asText());
+      if (item.get("value").asLong() == id) {
+        found = true;
+        assertEquals(name, item.get("label").asText(), "字典条目的 label 是角色名");
       }
     }
-    assertTrue(dictCodes.contains(code), "新建角色应出现在 roles 字典里：" + dictCodes);
-    assertTrue(dictCodes.contains("dev"), "内置角色仍在：" + dictCodes);
+    assertTrue(found, "新建角色应出现在 roles 字典里：" + dictItems);
   }
 }

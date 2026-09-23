@@ -9,6 +9,11 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
+  # T73/OPS-18：生产显式关 H2 console（开发调试面只在 dev profile 开，见 application-dev.yml）。
+  # prod 走 MySQL，console 本无 H2 可连；写在这里是防御性封口——不许哪天被 profile 叠加意外带开。
+  h2:
+    console:
+      enabled: false
 
 # 生产走 HTTPS：会话 cookie 必须带 Secure（dev 走 http，默认 false，06 对齐 A7-2）。
 zentao:

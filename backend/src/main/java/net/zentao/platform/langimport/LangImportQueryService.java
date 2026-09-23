@@ -10,6 +10,7 @@ import java.util.Set;
 import net.zentao.platform.filters.FieldRegistry;
 import net.zentao.platform.filters.FilterPredicate;
 import net.zentao.platform.filters.Filters;
+import net.zentao.platform.filters.LikePatterns;
 import org.springframework.stereotype.Component;
 
 /** 语言包上传记录查询（platform 卡 §3.12；列表 DSL 见 03 §3）。 */
@@ -44,7 +45,7 @@ public class LangImportQueryService {
 
   public LangImportList page(Map<String, String[]> params) {
     Filters filters = Filters.parse(params, REGISTRY);
-    QueryCondition injected = filters.q() == null ? null : FILE_NAME.like("%" + filters.q() + "%");
+    QueryCondition injected = filters.q() == null ? null : FILE_NAME.likeRaw(LikePatterns.contains(filters.q()));
     QueryWrapper query = FilterPredicate.compile(filters, COLUMNS::get, value -> Optional.empty(), injected);
     if (filters.sortKeys().isEmpty()) {
       query = query.orderBy(CREATED_AT.desc(), ID.desc());  // banned-words-ok：MyBatis-Flex 构造器方法名，非请求参数
@@ -52,9 +53,8 @@ public class LangImportQueryService {
     List<LangImportView> items =
         repository.page(query, filters.offset(), filters.limit()).stream().map(LangImportView::of).toList();
     // count 与 page 同条件（去 order/limit）
-    Filters countFilters = new Filters(filters.clauses(), List.of(), 1, 1, filters.q());
     QueryWrapper countQuery =
-        FilterPredicate.compile(countFilters, COLUMNS::get, value -> Optional.empty(), injected);
+        FilterPredicate.compile(filters.forCount(), COLUMNS::get, value -> Optional.empty(), injected);
     return new LangImportList(items, repository.countByQuery(countQuery));
   }
 }

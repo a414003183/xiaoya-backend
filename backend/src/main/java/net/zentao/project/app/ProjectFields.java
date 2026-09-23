@@ -35,7 +35,7 @@ final class ProjectFields {
     }
   }
 
-  /** beginDate ≤ endDate（project 卡 §3.1）。 */
+  /** beginDate ≤ endDate（project 卡 §3.1）。跨字段规则，不注解化。 */
   static void validateDates(LocalDate beginDate, LocalDate endDate) {
     if (beginDate != null && endDate != null && beginDate.isAfter(endDate)) {
       throw ApiException.validation(Map.of("endDate", "beforeBegin"));
@@ -66,7 +66,7 @@ final class ProjectFields {
     }
   }
 
-  /** acl 取值：program 型不可用 program（§3.1 备注）。 */
+  /** acl 取值：program 型不可用 program（§3.1 备注）。跨字段规则，不注解化。 */
   static String validateAcl(String type, String acl) {
     String value = acl == null ? "open" : acl;
     if (!List.of("open", "private", "program").contains(value)) {

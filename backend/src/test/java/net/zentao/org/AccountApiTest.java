@@ -65,7 +65,7 @@ class AccountApiTest {
   void accountLifecycle() throws Exception {
     // 创建
     HttpResponse<String> created = send("POST", "/api/v1/accounts",
-        "{\"account\":\"alice\",\"password\":\"secret123\",\"realName\":\"爱丽丝\",\"role\":\"dev\",\"groupIds\":[2]}",
+        "{\"account\":\"alice\",\"password\":\"secret123\",\"realName\":\"爱丽丝\",\"roleIds\":[2]}",
         cookie, null);
     assertEquals(200, created.statusCode(), created.body());
     long aliceId = json.readTree(created.body()).at("/data/id").asLong();
@@ -77,16 +77,16 @@ class AccountApiTest {
     assertEquals(422, duplicate.statusCode(), duplicate.body());
     assertTrue(duplicate.body().contains("42201") && duplicate.body().contains("account"), duplicate.body());
 
-    // 详情含 groupIds
+    // 详情含 roleIds
     HttpResponse<String> detail = send("GET", "/api/v1/accounts/" + aliceId, null, cookie, null);
-    assertTrue(detail.body().contains("\"groupIds\":[2]"), detail.body());
+    assertTrue(detail.body().contains("\"roleIds\":[2]"), detail.body());
 
-    // PATCH 改 realName + groupIds 全量替换
+    // PATCH 改 realName + roleIds 全量替换
     HttpResponse<String> patched = send("PATCH", "/api/v1/accounts/" + aliceId,
-        "{\"realName\":\"爱丽丝王\",\"groupIds\":[],\"lockVersion\":0}", cookie, null);
+        "{\"realName\":\"爱丽丝王\",\"roleIds\":[],\"lockVersion\":0}", cookie, null);
     assertEquals(200, patched.statusCode(), patched.body());
     assertTrue(patched.body().contains("爱丽丝王"), patched.body());
-    assertTrue(patched.body().contains("\"groupIds\":[]"), patched.body());
+    assertTrue(patched.body().contains("\"roleIds\":[]"), patched.body());
 
     // lockVersion 不符 → 40901
     HttpResponse<String> conflict = send("PATCH", "/api/v1/accounts/" + aliceId,

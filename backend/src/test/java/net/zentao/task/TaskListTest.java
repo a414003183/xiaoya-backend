@@ -127,4 +127,34 @@ class TaskListTest extends TaskTestSupport {
     assertEquals(true, json.readTree(edit.body()).at("/data/results/0/ok").asBoolean(), edit.body());
     assertEquals(2, task(first).at("/priority").asInt());
   }
+
+  @Test
+  @DisplayName("T56：q 里的 _ 与 % 是字面量（BE-06），深分页与超长 IN 越界 40001（BE-14）")
+  void keywordEscapingAndFilterCaps() throws Exception {
+    long execution = freshExecution();
+    createTask(execution, "转义样本 a_b");
+    createTask(execution, "转义样本 axb");
+    createTask(execution, "转义样本 50%off");
+
+    // 不转义时 `_` 是「任意单字符」（a_b 会连 axb 一起命中）——旧行为 total=2
+    JsonNode literal = data(send("GET", "/api/v1/executions/" + execution + "/tasks?q=a_b", null, admin));
+    assertEquals(1, literal.at("/total").asInt(), literal.toString());
+    assertEquals("转义样本 a_b", literal.at("/items/0/title").asText(), literal.toString());
+
+    // 不转义时 `%` 是「任意串」（q=% 返回全表）——旧行为 total=3
+    JsonNode percent = data(send("GET", "/api/v1/executions/" + execution + "/tasks?q=%25", null, admin));
+    assertEquals(1, percent.at("/total").asInt(), percent.toString());
+    assertEquals("转义样本 50%off", percent.at("/items/0/title").asText(), percent.toString());
+
+    HttpResponse<String> deepPage = send("GET",
+        "/api/v1/executions/" + execution + "/tasks?page=100000", null, admin);
+    assertEquals(400, deepPage.statusCode(), deepPage.body());
+    assertTrue(deepPage.body().contains("40001"), deepPage.body());
+
+    String ids = "1,".repeat(200) + "1"; // 201 个 IN 值，超 MAX_IN_VALUES=200
+    HttpResponse<String> tooManyIds = send("GET",
+        "/api/v1/executions/" + execution + "/tasks?filters%5Bid%5D=" + ids, null, admin);
+    assertEquals(400, tooManyIds.statusCode(), tooManyIds.body());
+    assertTrue(tooManyIds.body().contains("40001"), tooManyIds.body());
+  }
 }

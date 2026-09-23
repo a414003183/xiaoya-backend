@@ -9,6 +9,7 @@ import java.util.Optional;
 import net.zentao.org.api.AccountApi;
 import net.zentao.org.app.CreateAccountHandler;
 import net.zentao.org.domain.AccountRepository;
+import net.zentao.platform.filters.LikePatterns;
 import net.zentao.platform.session.AccountView;
 import org.springframework.stereotype.Component;
 
@@ -25,7 +26,7 @@ public class AccountApiImpl implements AccountApi {
   @Override
   public Optional<AccountView> view(long accountId) {
     return repository.findActiveById(accountId)
-        .map(account -> CreateAccountHandler.toView(account, repository.groupIdsOf(accountId)));
+        .map(account -> CreateAccountHandler.toView(account, repository.roleIdsOf(accountId)));
   }
 
   @Override
@@ -81,7 +82,7 @@ public class AccountApiImpl implements AccountApi {
     String path = root.getString("path");
     List<Row> rows = path == null || path.isBlank()
         ? List.of(root)
-        : Db.selectListByCondition("department", new QueryColumn("path").like(path + "%"));
+        : Db.selectListByCondition("department", new QueryColumn("path").likeLeft(path));
     List<Long> ids = new ArrayList<>();
     for (Row row : rows) {
       Object id = row.get("id");

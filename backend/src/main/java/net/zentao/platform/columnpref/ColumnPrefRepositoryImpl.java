@@ -5,6 +5,8 @@ import com.mybatisflex.core.query.QueryWrapper;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
@@ -12,6 +14,8 @@ import tools.jackson.databind.json.JsonMapper;
 /** 列设置仓储实现（infra；columns 走 JSON 文本列，读写口径同 account_role.labels）。 */
 @Component
 public class ColumnPrefRepositoryImpl implements ColumnPrefRepository {
+
+  private static final Logger log = LoggerFactory.getLogger(ColumnPrefRepositoryImpl.class);
 
   private static final TypeReference<List<ColumnPrefItem>> COLUMNS_TYPE = new TypeReference<>() {};
 
@@ -82,7 +86,9 @@ public class ColumnPrefRepositoryImpl implements ColumnPrefRepository {
     try {
       return Optional.of(new ColumnPref(po.getResource(), jsonMapper.readValue(po.getColumns(), COLUMNS_TYPE)));
     } catch (Exception e) {
-      // 坏数据视为未设置（不炸读路径；写路径已由 ColumnPref.normalizeColumns 保证形状）
+      // 坏数据视为未设置（不炸读路径；写路径已由 ColumnPref.normalizeColumns 保证形状）——T57/BE-10 起 WARN 留痕
+      log.atWarn().setCause(e).log("column_pref.columns 解析失败，按未设置处理 accountId={} resource={}",
+          po.getAccountId(), po.getResource());
       return Optional.empty();
     }
   }

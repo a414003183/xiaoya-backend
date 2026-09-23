@@ -7,6 +7,7 @@ import com.mybatisflex.core.row.Row;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.product.domain.Branch;
 import net.zentao.product.domain.BranchRepository;
 import org.springframework.stereotype.Component;
@@ -80,7 +81,7 @@ public class BranchRepositoryImpl implements BranchRepository {
 
   @Override
   public void softDelete(long id) {
-    Db.updateByCondition("branch", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
+    SoftDeletes.apply("branch", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
   }
 
   @Override

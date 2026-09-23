@@ -78,7 +78,7 @@ class PrivilegeCheckerTest {
   private long seedGroup() throws Exception {
     try (var connection = dataSource.getConnection();
         var insert = connection.prepareStatement(
-            "INSERT INTO auth_group (name) VALUES (?)", java.sql.Statement.RETURN_GENERATED_KEYS)) {
+            "INSERT INTO role (name) VALUES (?)", java.sql.Statement.RETURN_GENERATED_KEYS)) {
       insert.setString(1, "rbac-group-" + java.util.UUID.randomUUID());
       insert.executeUpdate();
       var keys = insert.getGeneratedKeys();
@@ -89,7 +89,7 @@ class PrivilegeCheckerTest {
 
   private void grant(long accountId, long groupId) throws Exception {
     try (var connection = dataSource.getConnection();
-        var insert = connection.prepareStatement("INSERT INTO user_group (account_id, group_id) VALUES (?, ?)")) {
+        var insert = connection.prepareStatement("INSERT INTO user_role (account_id, role_id) VALUES (?, ?)")) {
       insert.setLong(1, accountId);
       insert.setLong(2, groupId);
       insert.executeUpdate();
@@ -98,7 +98,7 @@ class PrivilegeCheckerTest {
 
   private void grantCode(long groupId, String code) throws Exception {
     try (var connection = dataSource.getConnection();
-        var insert = connection.prepareStatement("INSERT INTO group_priv (group_id, priv_code) VALUES (?, ?)")) {
+        var insert = connection.prepareStatement("INSERT INTO role_priv (role_id, priv_code) VALUES (?, ?)")) {
       insert.setLong(1, groupId);
       insert.setString(2, code);
       insert.executeUpdate();
@@ -107,7 +107,7 @@ class PrivilegeCheckerTest {
 
   private void revokeCode(long groupId, String code) throws Exception {
     try (var connection = dataSource.getConnection();
-        var delete = connection.prepareStatement("DELETE FROM group_priv WHERE group_id = ? AND priv_code = ?")) {
+        var delete = connection.prepareStatement("DELETE FROM role_priv WHERE role_id = ? AND priv_code = ?")) {
       delete.setLong(1, groupId);
       delete.setString(2, code);
       delete.executeUpdate();

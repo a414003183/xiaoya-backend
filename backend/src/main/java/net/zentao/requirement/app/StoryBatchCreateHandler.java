@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.i18n.MessageResolver;
 import net.zentao.platform.session.SessionPrincipal;
 import org.springframework.stereotype.Component;
 
@@ -17,9 +18,12 @@ public class StoryBatchCreateHandler {
   private static final int MAX_ITEMS = 50;
 
   private final CreateStoryHandler createHandler;
+  private final MessageResolver messages;
 
-  public StoryBatchCreateHandler(CreateStoryHandler createHandler) {
+  public StoryBatchCreateHandler(CreateStoryHandler createHandler,
+      MessageResolver messages) {
     this.createHandler = createHandler;
+    this.messages = messages;
   }
 
   public record ResultItem(int index, boolean ok, Long id, String error) {}
@@ -40,7 +44,7 @@ public class StoryBatchCreateHandler {
       try {
         results.add(new ResultItem(index, true, createHandler.handle(actor, productId, item).id(), null));
       } catch (ApiException e) {
-        results.add(new ResultItem(index, false, null, e.errorCode().code() + ":" + e.getMessage()));
+        results.add(new ResultItem(index, false, null, e.errorCode().code() + ":" + messages.forRequest(e)));
       }
       index += 1;
     }

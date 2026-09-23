@@ -26,14 +26,14 @@ class ProjectApiTest extends net.zentao.ApiTestSupport {
   /** 非超管账号需要功能权限码：建一个只含 project 域码的测试组。 */
   private String ensureAccount(String account) throws Exception {
     if (projectGroupId == 0) {
-      projectGroupId = dataId(send("POST", "/api/v1/groups", "{\"name\":\"项目测试组\"}", adminCookie));
-      assertEquals(200, send("PUT", "/api/v1/groups/" + projectGroupId + "/privileges",
+      projectGroupId = dataId(send("POST", "/api/v1/roles", "{\"name\":\"项目测试组\"}", adminCookie));
+      assertEquals(200, send("PUT", "/api/v1/roles/" + projectGroupId + "/privileges",
           "{\"codes\":[\"project-view\",\"project-create\",\"project-edit\",\"program-view\",\"program-create\","
               + "\"execution-view\"]}",
           adminCookie).statusCode());
     }
     send("POST", "/api/v1/accounts", "{\"account\":\"" + account + "\",\"password\":\"secret123\",\"realName\":\""
-        + account + "\",\"groupIds\":[" + projectGroupId + "]}", adminCookie);
+        + account + "\",\"roleIds\":[" + projectGroupId + "]}", adminCookie);
     return account;
   }
 

@@ -3,6 +3,7 @@ package net.zentao.org.app;
 import net.zentao.org.domain.Department;
 import net.zentao.org.domain.DepartmentRepository;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,12 +20,12 @@ public class DeleteDepartmentHandler {
   @Transactional
   public void handle(long departmentId) {
     Department department = repository.findById(departmentId)
-        .orElseThrow(() -> ApiException.notFound("部门"));
+        .orElseThrow(() -> ApiException.notFound("entity.department"));
     if (repository.existsByParentId(departmentId)) {
-      throw ApiException.guardNotSatisfied("存在子部门，不能删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "department.guard.hasChildren");
     }
     if (repository.hasMembers(departmentId)) {
-      throw ApiException.guardNotSatisfied("部门下存在成员，不能删除。");
+      throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "department.guard.hasMembers");
     }
     repository.delete(department.id());
   }

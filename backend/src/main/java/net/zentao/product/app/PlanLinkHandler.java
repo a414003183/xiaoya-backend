@@ -2,6 +2,7 @@ package net.zentao.product.app;
 
 import java.util.List;
 import net.zentao.platform.error.ApiException;
+import net.zentao.platform.error.ErrorCode;
 import net.zentao.platform.session.SessionPrincipal;
 import net.zentao.platform.workflow.WorkflowEngine;
 import net.zentao.product.api.LinkRequest;
@@ -57,7 +58,7 @@ public class PlanLinkHandler {
     if ("story".equals(objectType)) {
       List<StoryView> found = storyApi.findByIds(plan.productId(), ids);
       if (found.size() != ids.size()) {
-        throw ApiException.guardNotSatisfied("需求不存在或不属于该产品。");
+        throw ApiException.keyed(ErrorCode.GUARD_NOT_SATISFIED, "product.guard.storyNotInProduct");
       }
       if (link) {
         storyApi.linkPlan(ids, plan.id());

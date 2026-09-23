@@ -9,16 +9,14 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/** 更新账号资料（org 卡 §5：account 不可改；groupIds 全量替换；lockVersion 乐观锁）。 */
+/** 更新账号资料（org 卡 §5：account 不可改；roleIds 全量替换；lockVersion 乐观锁）。 */
 @Component
 public class UpdateAccountHandler {
 
   private final AccountRepository repository;
-  private final AccountRoleValidator roleValidator;
 
-  public UpdateAccountHandler(AccountRepository repository, AccountRoleValidator roleValidator) {
+  public UpdateAccountHandler(AccountRepository repository) {
     this.repository = repository;
-    this.roleValidator = roleValidator;
   }
 
   /**
@@ -28,10 +26,10 @@ public class UpdateAccountHandler {
   public record AccountUpdateRequest(
       @Schema(hidden = true) String account,
       String realName, String nickname,
-      @Schema(maxLength = 16, description = "账号角色码，必须存在于角色字典（GET /roles）") String role,
       Long departmentId, String email, String mobile, String phone,
       @Schema(allowableValues = {"m", "f"}) String gender, java.time.LocalDate birthday,
-      java.time.LocalDate joinedAt, Long avatarFileId, List<Long> groupIds, Integer lockVersion) {}
+      java.time.LocalDate joinedAt, Long avatarFileId, List<Long> roleIds,
+      @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Integer lockVersion) {}
 
   @Transactional
   public Account handle(SessionPrincipal actor, long accountId, AccountUpdateRequest command) {
@@ -39,22 +37,21 @@ public class UpdateAccountHandler {
       throw ApiException.validation(java.util.Map.of("account", "readonly"));
     }
     Account account = repository.findActiveById(accountId)
-        .orElseThrow(() -> ApiException.notFound("账号"));
+        .orElseThrow(() -> ApiException.notFound("entity.account"));
     if (command.lockVersion() == null || command.lockVersion() != account.lockVersion()) {
-      throw ApiException.lockConflict("数据已被他人修改，请刷新。");
+      throw ApiException.lockConflict();
     }
-    roleValidator.require(command.role());
-    account.updateProfile(command.realName(), command.nickname(), command.role(), command.departmentId(),
+    account.updateProfile(command.realName(), command.nickname(), command.departmentId(),
         command.email(), command.mobile(), command.phone(), command.gender(), command.birthday(),
         command.joinedAt(), command.avatarFileId());
     account.markUpdatedBy(actor == null ? null : actor.account());
-    Account saved = repository.update(account).orElseThrow(() -> ApiException.lockConflict("数据已被他人修改，请刷新。"));
-    if (command.groupIds() != null) {
-      List<Long> missing = repository.findMissingGroupIds(command.groupIds());
+    Account saved = repository.update(account).orElseThrow(() -> ApiException.lockConflict());
+    if (command.roleIds() != null) {
+      List<Long> missing = repository.findMissingRoleIds(command.roleIds());
       if (!missing.isEmpty()) {
-        throw ApiException.validation(java.util.Map.of("groupIds", "notFound"));
+        throw ApiException.validation(java.util.Map.of("roleIds", "notFound"));
       }
-      repository.replaceGroups(accountId, command.groupIds());
+      repository.replaceRoles(accountId, command.roleIds());
     }
     return saved;
   }

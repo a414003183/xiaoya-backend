@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import net.zentao.platform.persistence.SoftDeletes;
 import net.zentao.requirement.domain.Story;
 import net.zentao.requirement.domain.StoryRepository;
 import org.springframework.stereotype.Component;
@@ -118,7 +119,7 @@ public class StoryRepositoryImpl implements StoryRepository {
 
   @Override
   public void softDelete(long id) {
-    Db.updateByCondition("story", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
+    SoftDeletes.apply("story", Row.of("deleted_at", Instant.now()), new QueryColumn("id").eq(id));
   }
 
   private Story toDomain(StoryPO po) {
